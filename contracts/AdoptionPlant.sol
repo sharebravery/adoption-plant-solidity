@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "./PlantMarket.sol";
 
 contract PlantAdoption is Ownable, ReentrancyGuard {
     using Address for address payable;
@@ -60,7 +61,9 @@ contract PlantAdoption is Ownable, ReentrancyGuard {
         uint256 endTime
     );
 
-    constructor() Ownable(msg.sender) {
+    constructor(address _plantMarketContract) Ownable(msg.sender) {
+         plantMarketContract = PlantMarket(_plantMarketContract);
+
         // 设置各种植物的领养价格范围
         priceRanges[PlantType.Ordinary] = AdoptionPriceRange(
             0.005 ether,
@@ -104,6 +107,15 @@ contract PlantAdoption is Ownable, ReentrancyGuard {
         );
     }
 
+    // 转移植物所有权
+    function transferPlantOwnership(uint256 _plantId, address _newOwner) external onlyOwner {
+        Plant storage plant = plants[_plantId];
+        require(plant.isAdopted, "Plant is not adopted");
+        require(plant.owner == msg.sender, "You don't own this plant");
+        plant.owner = _newOwner;
+    }
+
+
     // 领养植物
     function adoptPlant(PlantType _plantType) external payable nonReentrant {
         // 检查领养价格范围和领养时间
@@ -113,6 +125,11 @@ contract PlantAdoption is Ownable, ReentrancyGuard {
             "Invalid adoption price"
         );
         require(_isAdoptionTimeValid(_plantType), "Not adoption time");
+
+        // 超过0.75个以太的树自动分开生成5种树
+        // if(_plantType == PlantType.KingTree && msg.value > priceRanges[PlantType.KingTree].maxEth){
+        //     // TODO
+        // }
 
         // 如果用户已预约抢购，则直接把树分配给预约的用户
         address reservedUser = _getReservedUser(_plantType);
@@ -135,6 +152,9 @@ contract PlantAdoption is Ownable, ReentrancyGuard {
         // 存储植物实例
         plants[plantIdCounter] = newPlant;
 
+    // 将植物所有权转移到用户
+    _transferPlantOwnership(plantIdCounter, msg.sender);
+
         // 更新植物 ID 计数器
         plantIdCounter++;
 
@@ -146,6 +166,13 @@ contract PlantAdoption is Ownable, ReentrancyGuard {
             newPlant.adoptionTime,
             newPlant.endTime
         );
+    }
+
+    // 转移植物所有权
+    function _transferPlantOwnership(uint256 _plantId, address _newOwner) internal {
+        Plant storage plant = plants[_plantId];
+        require(plant.isAdopted, "Plant is not adopted");
+        plant.owner = _newOwner;
     }
 
     // 用户预约抢购树
@@ -162,33 +189,34 @@ contract PlantAdoption is Ownable, ReentrancyGuard {
     }
 
     // 获取已预约抢购的用户
-    function _getReservedUser(
-        PlantType _plantType
-    ) internal view returns (address) {
-        // 获取该植物类型的预约用户列表
-        address[] storage reservedUsers = reservedUsers[_plantType];
-        uint256 numberOfUsers = reservedUsers.length;
+function _getReservedUser(
+    PlantType _plantType
+) internal view returns (address) {
+    // 获取该植物类型的预约用户列表
+    address[] storage users = reservedUsers[_plantType];
+    uint256 numberOfUsers = users.length;
 
-        if (numberOfUsers > 0) {
-            // 生成一个随机数，确定选择哪个预约用户
-            uint256 randomNumber = uint256(
-                keccak256(
-                    abi.encodePacked(
-                        block.timestamp,
-                        block.difficulty,
-                        blockhash(block.number - 1)
-                    )
+    if (numberOfUsers > 0) {
+        // 生成一个随机数，确定选择哪个预约用户
+        uint256 randomNumber = uint256(
+            keccak256(
+                abi.encodePacked(
+                    block.timestamp,
+                    block.prevrandao,
+                    blockhash(block.number - 1)
                 )
-            );
-            uint256 index = randomNumber % numberOfUsers;
+            )
+        );
+        uint256 index = randomNumber % numberOfUsers;
 
-            // 返回选中的预约用户地址
-            return reservedUsers[index];
-        } else {
-            // 没有预约用户，返回地址(0)
-            return address(0);
-        }
+        // 返回选中的预约用户地址
+        return users[index];
+    } else {
+        // 没有预约用户，返回地址(0)
+        return address(0);
     }
+}
+
 
     // 将植物分配给用户
     function _assignPlantToUser(address _user, PlantType _plantType) internal {
