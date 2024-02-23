@@ -11,16 +11,21 @@ async function main() {
 
   console.log("Deploying contact with account:", deployer.address);
 
-  const AdoptionPlant = await ethers.getContractFactory("AdoptionPlant");
-  const AdoptionPlantFactory = await AdoptionPlant.deploy();
-  await AdoptionPlantFactory.waitForDeployment();
+  const PlantMarket = await ethers.getContractFactory("PlantMarket");
+  const PlantMarketFactory = await PlantMarket.deploy();
+  await PlantMarketFactory.waitForDeployment();
 
-  console.log("AdoptionPlant deployed to:", await AdoptionPlantFactory.getAddress());
+  // // 调用 createPlant 函数
+  // await PlantMarketFactory.createPlant(0);
+  // await PlantMarketFactory.createPlant(1);
+
+  console.log("PlantMarket deployed to:", await PlantMarketFactory.getAddress());
+
 
   console.log(
     `Lock with ${ethers.formatEther(
       lockedAmount
-    )}ETH and unlock timestamp ${unlockTime} deployed to ${AdoptionPlantFactory.target}`
+    )}ETH and unlock timestamp ${unlockTime} deployed to ${PlantMarketFactory.target}`
   );
 }
 

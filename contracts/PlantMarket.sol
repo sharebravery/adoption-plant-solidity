@@ -128,15 +128,7 @@ contract PlantMarket is Ownable, ReentrancyGuard {
     // 官方创建植物到市场
     function createPlant(PlantType _plantType) external onlyOwner {
         require(plantIdCounter < type(uint256).max, "Plant ID overflow");
-
-        // 获取领养时间范围
-        // uint256 startTime = priceRanges[_plantType].startTime;
-        // uint256 endTime = priceRanges[_plantType].endTime;
-
-        // uint256 adoptionTime = getAdoptionTime(startTime);
-
-        // uint256 endTime = adoptionTime + priceRanges[_plantType].profitDays * 1 days;
-
+        
         // 创建植物实例
         Plant memory newPlant = Plant({
             plantId: plantIdCounter,
@@ -156,20 +148,6 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         // 触发事件
         emit PlantListed(plantIdCounter, address(this), 0);
     }
-
-    // 获取领养时间
-    // function getAdoptionTime(uint256 startTime)
-    //     internal
-    //     view
-    //     returns (uint256)
-    // {
-    //     uint256 currentTimestamp = block.timestamp;
-    //     uint256 currentHour = (currentTimestamp / 3600) % 24;
-    //     uint256 secondsUntilNextHour = ((
-    //         currentHour < startTime ? startTime : startTime + 24
-    //     ) - currentHour) * 3600;
-    //     return currentTimestamp + secondsUntilNextHour;
-    // }
 
     // 领养植物
     function adoptPlant(uint256 _plantId) external payable nonReentrant {
@@ -197,7 +175,6 @@ contract PlantMarket is Ownable, ReentrancyGuard {
             msg.sender,
             plant.plantType,
             block.timestamp
-            // plant.endTime
         );
 
         // 转移支付金额给植物所有者（之前是市场合约）
@@ -212,16 +189,6 @@ contract PlantMarket is Ownable, ReentrancyGuard {
     {
         return userAdoptionRecords[_user].adoptionCount[_plantType];
     }
-
-    // // 查询植物是否挂卖及价格
-    // function getPlantListing(uint256 _plantId)
-    //     external
-    //     view
-    //     returns (bool listed, uint256 price)
-    // {
-    //     Plant storage plant = plants[_plantId];
-    //     return (!plant.isAdopted, 0);
-    // }
 
     // 检查领养时间是否有效
     function _isAdoptionTimeValid(PlantType _plantType)
