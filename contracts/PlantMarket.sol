@@ -19,8 +19,9 @@ contract PlantMarket is Ownable, ReentrancyGuard {
 
     // 植物信息
     struct Plant {
-        uint256 adoptionTime; // 领养时间
-        uint256 endTime; // 结束时间
+        uint256 plantId;
+        // uint256 startTime; // 领养时间
+        // uint256 endTime; // 结束时间
         PlantType plantType; // 植物种类
         address owner; // 拥有者地址
         bool isAdopted; // 是否被领养
@@ -42,11 +43,13 @@ contract PlantMarket is Ownable, ReentrancyGuard {
     // 植物实例
     mapping(uint256 => Plant) public plants;
 
-    // 预约用户列表
-    mapping(PlantType => address[]) public reservedUsers;
+    // 用户领养记录
+    struct UserAdoptionRecord {
+        mapping(PlantType => uint256) adoptionCount; // 记录用户领养每种植物的次数
+    }
 
-    // 预约记录
-    mapping(PlantType => mapping(address => bool)) public reservations;
+    // 用户地址到领养记录的映射
+    mapping(address => UserAdoptionRecord) private userAdoptionRecords;
 
     // 植物 ID 计数器
     uint256 private plantIdCounter;
@@ -55,8 +58,8 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         uint256 indexed plantId,
         address indexed owner,
         PlantType plantType,
-        uint256 adoptionTime,
-        uint256 endTime
+        uint256 adoptionTime
+        // uint256 endTime
     );
 
     event PlantListed(
@@ -64,22 +67,19 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         address indexed seller,
         uint256 price
     );
+
     event PlantSold(
         uint256 indexed plantId,
         address indexed buyer,
         address indexed seller,
         uint256 price
     );
-    event PlantReserved(
-        uint256 indexed plantId,
-        address indexed user,
-        PlantType plantType
-    );
-    event ReservationCanceled(
-        uint256 indexed plantId,
-        address indexed user,
-        PlantType plantType
-    );
+
+    // 植物在市场上的列表信息
+    struct MarketPlantInfo {
+        uint256 plantId;
+        PlantType plantType;
+    }
 
     constructor() Ownable(msg.sender) {
         // 设置各种植物的领养价格范围
@@ -129,12 +129,19 @@ contract PlantMarket is Ownable, ReentrancyGuard {
     function createPlant(PlantType _plantType) external onlyOwner {
         require(plantIdCounter < type(uint256).max, "Plant ID overflow");
 
+        // 获取领养时间范围
+        // uint256 startTime = priceRanges[_plantType].startTime;
+        // uint256 endTime = priceRanges[_plantType].endTime;
+
+        // uint256 adoptionTime = getAdoptionTime(startTime);
+
+        // uint256 endTime = adoptionTime + priceRanges[_plantType].profitDays * 1 days;
+
         // 创建植物实例
         Plant memory newPlant = Plant({
-            adoptionTime: block.timestamp,
-            endTime: block.timestamp +
-                priceRanges[_plantType].profitDays *
-                1 days,
+            plantId: plantIdCounter,
+            // startTime: adoptionTime,
+            // endTime: endTime,
             plantType: _plantType,
             owner: address(this), // 植物所有权归市场合约
             isAdopted: false
@@ -143,12 +150,26 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         // 存储植物实例
         plants[plantIdCounter] = newPlant;
 
-        // 触发事件
-        emit PlantListed(plantIdCounter, address(this), 0);
-
         // 更新植物 ID 计数器
         plantIdCounter++;
+
+        // 触发事件
+        emit PlantListed(plantIdCounter, address(this), 0);
     }
+
+    // 获取领养时间
+    // function getAdoptionTime(uint256 startTime)
+    //     internal
+    //     view
+    //     returns (uint256)
+    // {
+    //     uint256 currentTimestamp = block.timestamp;
+    //     uint256 currentHour = (currentTimestamp / 3600) % 24;
+    //     uint256 secondsUntilNextHour = ((
+    //         currentHour < startTime ? startTime : startTime + 24
+    //     ) - currentHour) * 3600;
+    //     return currentTimestamp + secondsUntilNextHour;
+    // }
 
     // 领养植物
     function adoptPlant(uint256 _plantId) external payable nonReentrant {
@@ -163,55 +184,44 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         );
         require(_isAdoptionTimeValid(plant.plantType), "Not adoption time");
 
+        // 更新植物信息
         plant.owner = msg.sender;
         plant.isAdopted = true;
 
-        // 转移支付金额给植物所有者（之前是市场合约）
-        payable(owner()).sendValue(msg.value);
-
-        // 如果有预约用户且当前用户是预约用户，则领养植物并取消预约
-        if (reservations[plant.plantType][msg.sender]) {
-            // 取消预约
-            reservations[plant.plantType][msg.sender] = false;
-
-            emit ReservationCanceled(_plantId, msg.sender, plant.plantType);
-        }
+        // 更新用户领养记录
+        userAdoptionRecords[msg.sender].adoptionCount[plant.plantType]++;
 
         // 触发事件
         emit PlantAdopted(
             _plantId,
             msg.sender,
             plant.plantType,
-            block.timestamp,
-            plant.endTime
-        );
-    }
-
-    // 预约植物抢购
-    function reservePlant(PlantType _plantType) external nonReentrant {
-        require(!_isAdoptionTimeValid(_plantType), "It's adoption time");
-        require(
-            !reservations[_plantType][msg.sender],
-            "You have already reserved this plant type"
+            block.timestamp
+            // plant.endTime
         );
 
-        // 添加用户到预约列表
-        reservedUsers[_plantType].push(msg.sender);
-        reservations[_plantType][msg.sender] = true;
-
-        // 触发事件
-        emit PlantReserved(0, msg.sender, _plantType);
+        // 转移支付金额给植物所有者（之前是市场合约）
+        payable(owner()).sendValue(msg.value);
     }
 
-    // 查询植物是否挂卖及价格
-    function getPlantListing(uint256 _plantId)
+    // 查询用户领养记录
+    function getUserAdoptionRecord(address _user, PlantType _plantType)
         external
         view
-        returns (bool listed, uint256 price)
+        returns (uint256)
     {
-        Plant storage plant = plants[_plantId];
-        return (!plant.isAdopted, 0);
+        return userAdoptionRecords[_user].adoptionCount[_plantType];
     }
+
+    // // 查询植物是否挂卖及价格
+    // function getPlantListing(uint256 _plantId)
+    //     external
+    //     view
+    //     returns (bool listed, uint256 price)
+    // {
+    //     Plant storage plant = plants[_plantId];
+    //     return (!plant.isAdopted, 0);
+    // }
 
     // 检查领养时间是否有效
     function _isAdoptionTimeValid(PlantType _plantType)
@@ -226,4 +236,38 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         return currentHour >= startTime && currentHour < endTime;
     }
 
+    function getPlantInfoById(uint256 _plantId) public view returns(Plant memory) {
+        return plants[_plantId];
+    }
+
+    // 获取市场上所有未被领养的植物的更多信息列表
+    function getMarketListings()
+        external
+        view
+        returns (MarketPlantInfo[] memory)
+    {
+        MarketPlantInfo[] memory marketListings = new MarketPlantInfo[](
+            plantIdCounter
+        );
+
+        uint256 count = 0;
+        for (uint256 i = 0; i < plantIdCounter; i++) {
+            Plant storage plant = plants[i];
+            if (!plant.isAdopted) {
+                marketListings[count] = MarketPlantInfo({
+                    plantId: i,
+                    plantType: plant.plantType
+                });
+                count++;
+            }
+        }
+
+        // Trim array to remove empty slots
+        MarketPlantInfo[] memory trimmedListings = new MarketPlantInfo[](count);
+        for (uint256 j = 0; j < count; j++) {
+            trimmedListings[j] = marketListings[j];
+        }
+
+        return trimmedListings;
+    }
 }

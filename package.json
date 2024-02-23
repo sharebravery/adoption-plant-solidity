@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "npx hardhat node --hostname 192.168.31.50 --port 8545",
-    "build": "npx hardhat compile",
+    "build": "npx hardhat compile & pnpm run gen:docs",
     "deploy": "pnpm run build && npx hardhat run scripts/deploy.ts --network hardhat",
     "deploy:sepolia": "pnpm run build && npx hardhat run scripts/deploy.ts --network sepolia",
     "test": "npx hardhat test",

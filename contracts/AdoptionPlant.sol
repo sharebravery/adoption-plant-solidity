@@ -4,7 +4,7 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "./PlantMarket.sol";
+// import "./PlantMarket.sol";
 
 contract PlantAdoption is Ownable, ReentrancyGuard {
     using Address for address payable;
@@ -61,8 +61,9 @@ contract PlantAdoption is Ownable, ReentrancyGuard {
         uint256 endTime
     );
 
-    constructor(address _plantMarketContract) Ownable(msg.sender) {
-         plantMarketContract = PlantMarket(_plantMarketContract);
+    constructor() Ownable(msg.sender) {
+    // constructor(address _plantMarketContract) Ownable(msg.sender) {
+        //  plantMarketContract = PlantMarket(_plantMarketContract);
 
         // 设置各种植物的领养价格范围
         priceRanges[PlantType.Ordinary] = AdoptionPriceRange(
