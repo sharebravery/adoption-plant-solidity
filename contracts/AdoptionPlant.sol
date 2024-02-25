@@ -116,7 +116,6 @@ contract PlantAdoption is Ownable, ReentrancyGuard {
         plant.owner = _newOwner;
     }
 
-
     // 领养植物
     function adoptPlant(PlantType _plantType) external payable nonReentrant {
         // 检查领养价格范围和领养时间
@@ -252,12 +251,13 @@ function _getReservedUser(
     function _isAdoptionTimeValid(
         PlantType _plantType
     ) internal view returns (bool) {
-        uint256 currentHour = (block.timestamp / 3600) % 24;
+        uint256 currentHour = ((block.timestamp + 8 hours) / 3600) % 24;
         uint256 startTime = priceRanges[_plantType].startTime;
         uint256 endTime = priceRanges[_plantType].endTime;
 
         return currentHour >= startTime && currentHour < endTime;
     }
+
 
     // 取回合约中的 ETH
     function withdrawEth() external onlyOwner {
