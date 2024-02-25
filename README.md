@@ -20,28 +20,30 @@ enum PlantType {
 struct Plant {
   uint256 plantId;
   enum PlantMarket.PlantType plantType;
+  uint256 minEth;
+  uint256 maxEth;
+  uint8 startTime;
+  uint8 endTime;
+  uint256 adoptedTimestamp;
+  uint8 profitDays;
+  uint16 profitRate;
   address owner;
   bool isAdopted;
 }
 ```
 
-### AdoptionPriceRange
+### PlantDTO
 
 ```solidity
-struct AdoptionPriceRange {
+struct PlantDTO {
   uint256 minEth;
   uint256 maxEth;
-  uint256 startTime;
-  uint256 endTime;
-  uint256 profitDays;
-  uint256 profitRate;
+  uint8 startTime;
+  uint8 endTime;
+  enum PlantMarket.PlantType plantType;
+  uint8 profitDays;
+  uint16 profitRate;
 }
-```
-
-### priceRanges
-
-```solidity
-mapping(enum PlantMarket.PlantType => struct PlantMarket.AdoptionPriceRange) priceRanges
 ```
 
 ### plants
@@ -54,6 +56,7 @@ mapping(uint256 => struct PlantMarket.Plant) plants
 
 ```solidity
 struct UserAdoptionRecord {
+  uint256[] plantIds;
   mapping(enum PlantMarket.PlantType => uint256) adoptionCount;
 }
 ```
@@ -94,7 +97,7 @@ constructor() public
 ### createPlant
 
 ```solidity
-function createPlant(enum PlantMarket.PlantType _plantType) external
+function createPlant(struct PlantMarket.PlantDTO plantDTO) external
 ```
 
 ### adoptPlant
@@ -103,17 +106,54 @@ function createPlant(enum PlantMarket.PlantType _plantType) external
 function adoptPlant(uint256 _plantId) external payable
 ```
 
-### getUserAdoptionRecord
-
-```solidity
-function getUserAdoptionRecord(address _user, enum PlantMarket.PlantType _plantType) external view returns (uint256)
-```
-
 ### _isAdoptionTimeValid
 
 ```solidity
-function _isAdoptionTimeValid(enum PlantMarket.PlantType _plantType) internal view returns (bool)
+function _isAdoptionTimeValid(struct PlantMarket.Plant _plant) internal view returns (bool)
 ```
+
+### getUserAdoptionPlantIds
+
+```solidity
+function getUserAdoptionPlantIds(address _user) public view returns (uint256[])
+```
+
+查询用户曾经领养过的植物ID
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _user | address | 用户 |
+
+### getUserAdoptionRecord
+
+```solidity
+function getUserAdoptionRecord(address _user, enum PlantMarket.PlantType _plantType) public view returns (uint256)
+```
+
+查询用户曾经领养某类植物次数
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _user | address | 用户 |
+| _plantType | enum PlantMarket.PlantType | 植物类型 |
+
+### getUserAdoptedPlants
+
+```solidity
+function getUserAdoptedPlants(address _user) external view returns (struct PlantMarket.Plant[])
+```
+
+查询用户当前已领养的植物
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _user | address | 用户地址 |
 
 ### getPlantInfoById
 
@@ -121,10 +161,18 @@ function _isAdoptionTimeValid(enum PlantMarket.PlantType _plantType) internal vi
 function getPlantInfoById(uint256 _plantId) public view returns (struct PlantMarket.Plant)
 ```
 
+根据Id查询植物信息
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _plantId | uint256 | 植物ID |
+
 ### getMarketListings
 
 ```solidity
-function getMarketListings() external view returns (struct PlantMarket.MarketPlantInfo[])
+function getMarketListings() external view returns (struct PlantMarket.Plant[])
 ```
 
 ## PlantAdoption

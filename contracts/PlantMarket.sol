@@ -20,18 +20,21 @@ contract PlantMarket is Ownable, ReentrancyGuard {
     // 植物信息
     struct Plant {
         uint256 plantId;
-        uint8 minEth; // 最小领养价格（单位：以太）
-        uint8 maxEth; // 最大领养价格（单位：以太）
-        uint8 startTime; // 领养时间 hour
-        uint8 endTime; // 结束时间 hour
         PlantType plantType; // 植物种类
+        uint256 minEth; // 最小领养价格（单位：以太）
+        uint256 maxEth; // 最大领养价格（单位：以太）
+        uint8 startTime; // 开始时间 hour
+        uint8 endTime; // 结束时间 hour
+        uint adoptedTimestamp; // 领养时间 时间戳
+        uint8 profitDays; // 收益天数
+        uint16 profitRate; // 收益率（单位：百分比）
         address owner; // 拥有者地址
         bool isAdopted; // 是否被领养
     }
 
     struct PlantDTO {
-        uint8 minEth; // 最小领养价格（单位：以太）
-        uint8 maxEth; // 最大领养价格（单位：以太）
+        uint256 minEth; // 最小领养价格（单位：以太）
+        uint256 maxEth; // 最大领养价格（单位：以太）
         uint8 startTime; // 领养时间 hour
         uint8 endTime; // 结束时间 hour
         PlantType plantType; // 植物种类
@@ -149,9 +152,12 @@ contract PlantMarket is Ownable, ReentrancyGuard {
             maxEth:plantDTO.maxEth ,
             startTime: plantDTO.startTime,
             endTime: plantDTO.endTime,
+            adoptedTimestamp: 0,
             plantType: plantDTO.plantType,
             owner: address(this), // 植物所有权归市场合约
-            isAdopted: false
+            isAdopted: false,
+            profitDays:plantDTO.profitDays, // 收益天数
+            profitRate: plantDTO.profitRate
         });
 
         // 存储植物实例
@@ -203,7 +209,7 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         view
         returns (bool)
     {
-        uint256 currentHour = (block.timestamp / 3600) % 24;
+        uint256 currentHour = ((block.timestamp + 8 hours) / 3600) % 24;
         uint256 startTime =_plant.startTime;
         uint256 endTime = _plant.endTime;
 
@@ -229,8 +235,13 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         view
         returns (uint256)
     {
+         require(
+            _plantType >= PlantType.Ordinary && _plantType <= PlantType.KingTree,
+            "Invalid plant type"
+        );
         return userAdoptionRecords[_user].adoptionCount[_plantType];
     }
+
 
     /**
      * 查询用户当前已领养的植物
@@ -273,9 +284,9 @@ contract PlantMarket is Ownable, ReentrancyGuard {
     function getMarketListings()
         external
         view
-        returns (MarketPlantInfo[] memory)
+        returns (Plant[] memory)
     {
-        MarketPlantInfo[] memory marketListings = new MarketPlantInfo[](
+        Plant[] memory marketListings = new Plant[](
             plantIdCounter
         );
 
@@ -283,16 +294,13 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         for (uint256 i = 0; i < plantIdCounter; i++) {
             Plant storage plant = plants[i];
             if (!plant.isAdopted) {
-                marketListings[count] = MarketPlantInfo({
-                    plantId: i,
-                    plantType: plant.plantType
-                });
+                marketListings[count] = plant;
                 count++;
             }
         }
 
         // Trim array to remove empty slots
-        MarketPlantInfo[] memory trimmedListings = new MarketPlantInfo[](count);
+        Plant[] memory trimmedListings = new Plant[](count);
         for (uint256 j = 0; j < count; j++) {
             trimmedListings[j] = marketListings[j];
         }
