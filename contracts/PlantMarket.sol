@@ -63,7 +63,6 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         address indexed owner,
         PlantType plantType,
         uint256 adoptionTime
-        // uint256 endTime
     );
 
     event PlantListed(
@@ -78,12 +77,6 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         address indexed seller,
         uint256 price
     );
-
-    // 植物在市场上的列表信息
-    struct MarketPlantInfo {
-        uint256 plantId;
-        PlantType plantType;
-    }
 
     constructor() Ownable(msg.sender) {}
 
@@ -169,34 +162,65 @@ contract PlantMarket is Ownable, ReentrancyGuard {
     }
 
     /**
+     * 
+     * @param plantId 用户自行挂单
+     */
+   function list(uint256 plantId) public {
+    require(plantId < plantIdCounter, "Invalid plant ID");
+    require(msg.sender == plants[plantId].owner, "Not owner");
+
+    Plant storage plant = plants[plantId];
+
+    if (
+        plant.isAdopted == true &&
+        block.timestamp >= 
+        plant.adoptedTimestamp + plant.profitDays * 60
+         // plant.adoptedTimestamp + plant.profitDays * 1 hours
+    ) {
+        // 结算 更新每种新树的属性，如领养价格范围和收益率等
+        plant.minEth =
+            plant.minEth +
+            (plant.minEth * plant.profitRate) / 100;
+
+        if (plant.minEth > 0.75 ether) {
+            _splitPlant(plant);
+            plant.hasSplit = true; // 确认分裂完毕
+        } else {
+            _settlePlant(plant);
+            plant.isAdopted = false; // 生长完毕重新投入市场
+        }
+    }
+}
+
+
+    /**
      * 达到收益天数自动结算，重新投入市场
      */
     // function autoSplitAndSettle() public onlyOwner {
-    function autoSplitAndSettle() public  {
-        for (uint256 i = 0; i < plantIdCounter; i++) {
-            Plant storage plant = plants[i];
-            if (
-                plant.isAdopted == true &&
-                block.timestamp >=
-                plant.adoptedTimestamp + plant.profitDays * 60
-                // plant.adoptedTimestamp + plant.profitDays * 1 hours
-            ) {
-                // 结算 更新每种新树的属性，如领养价格范围和收益率等
-                plant.minEth =
-                    plant.minEth +
-                    (plant.minEth * plant.profitRate) /
-                    100;
+    //     for (uint256 i = 0; i < plantIdCounter; i++) {
+    //         Plant storage plant = plants[i];
+    //         if (
+    //             plant.isAdopted == true &&
+    //             block.timestamp >=
+    //             plant.adoptedTimestamp + plant.profitDays * 60
+    //             // plant.adoptedTimestamp + plant.profitDays * 1 hours
+    //         ) {
+    //             // 结算 更新每种新树的属性，如领养价格范围和收益率等
+    //             plant.minEth =
+    //                 plant.minEth +
+    //                 (plant.minEth * plant.profitRate) /
+    //                 100;
 
-                if (plant.minEth > 0.75 ether) {
-                    _splitPlant(plant);
-                    plant.hasSplit = true; // 确认分裂完毕
-                } else {
-                    _settlePlant(plant);
-                    plant.isAdopted = false; // 生长完毕重新投入市场
-                }
-            }
-        }
-    }
+    //             if (plant.minEth > 0.75 ether) {
+    //                 _splitPlant(plant);
+    //                 plant.hasSplit = true; // 确认分裂完毕
+    //             } else {
+    //                 _settlePlant(plant);
+    //                 plant.isAdopted = false; // 生长完毕重新投入市场
+    //             }
+    //         }
+    //     }
+    // }
 
     function _splitPlant(Plant storage _plant) private {
         // 分裂逻辑

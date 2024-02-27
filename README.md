@@ -80,15 +80,6 @@ event PlantListed(uint256 plantId, address seller, uint256 price)
 event PlantSold(uint256 plantId, address buyer, address seller, uint256 price)
 ```
 
-### MarketPlantInfo
-
-```solidity
-struct MarketPlantInfo {
-  uint256 plantId;
-  enum PlantMarket.PlantType plantType;
-}
-```
-
 ### constructor
 
 ```solidity
@@ -113,13 +104,17 @@ function adoptPlant(uint256 _plantId) external payable
 function _isAdoptionTimeValid(struct PlantMarket.Plant _plant) internal view returns (bool)
 ```
 
-### autoSplitAndSettle
+### list
 
 ```solidity
-function autoSplitAndSettle() public
+function list(uint256 plantId) public
 ```
 
-达到收益天数自动结算，重新投入市场
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| plantId | uint256 | 用户自行挂单 |
 
 ### getUserAdoptionPlantIds
 
