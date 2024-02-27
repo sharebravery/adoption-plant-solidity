@@ -25,11 +25,12 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         uint256 maxEth; // 最大领养价格（单位：以太）
         uint8 startTime; // 开始时间 hour
         uint8 endTime; // 结束时间 hour
-        uint adoptedTimestamp; // 领养时间 时间戳
+        uint256 adoptedTimestamp; // 领养时间 时间戳
         uint8 profitDays; // 收益天数
         uint16 profitRate; // 收益率（单位：百分比）
         address owner; // 拥有者地址
         bool isAdopted; // 是否被领养
+        bool hasSplit; // 用于标记植物是否已经分裂
     }
 
     struct PlantDTO {
@@ -41,19 +42,6 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         uint8 profitDays; // 收益天数
         uint16 profitRate; // 收益率（单位：百分比）
     }
-
-    // 植物领养价格范围
-    // struct AdoptionPriceRange {
-    //     // uint256 minEth; // 最小领养价格（单位：以太）
-    //     // uint256 maxEth; // 最大领养价格（单位：以太）
-    //     // uint256 startTime; // 开始时间（单位：小时）
-    //     // uint256 endTime; // 结束时间（单位：小时）
-    //     uint256 profitDays; // 收益天数
-    //     uint256 profitRate; // 收益率（单位：百分比）
-    // }
-
-    // 各种植物的领养价格范围
-    // mapping(PlantType => AdoptionPriceRange) public priceRanges;
 
     // 植物实例
     mapping(uint256 => Plant) public plants;
@@ -67,7 +55,7 @@ contract PlantMarket is Ownable, ReentrancyGuard {
     // 用户地址到领养记录的映射
     mapping(address => UserAdoptionRecord) private userAdoptionRecords;
 
-        // 植物 ID 计数器
+    // 植物 ID 计数器
     uint256 private plantIdCounter;
 
     event PlantAdopted(
@@ -97,66 +85,30 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         PlantType plantType;
     }
 
-    constructor() Ownable(msg.sender) {
-        // 设置各种植物的领养价格范围
-        // priceRanges[PlantType.Ordinary] = AdoptionPriceRange(
-        //     // 0.005 ether,
-        //     // 0.015 ether,
-        //     // 14,
-        //     // 15,
-        //     7,
-        //     21
-        // );
-        // priceRanges[PlantType.SmallTree] = AdoptionPriceRange(
-        //     0.0151 ether,
-        //     0.045 ether,
-        //     // 15,
-        //     // 16,
-        //     3,
-        //     9
-        // );
-        // priceRanges[PlantType.MediumTree] = AdoptionPriceRange(
-        //     0.0451 ether,
-        //     0.125 ether,
-        //     // 16,
-        //     // 17,
-        //     5,
-        //     13
-        // );
-        // priceRanges[PlantType.HighTree] = AdoptionPriceRange(
-        //     0.1251 ether,
-        //     0.3 ether,
-        //     // 17,
-        //     // 18,
-        //     12,
-        //     21
-        // );
-        // priceRanges[PlantType.KingTree] = AdoptionPriceRange(
-        //     0.3001 ether,
-        //     0.75 ether,
-        //     // 18,
-        //     // 19,
-        //     20,
-        //     40
-        // );
-    }
+    constructor() Ownable(msg.sender) {}
 
     // 官方创建植物到市场
-    function createPlant(PlantDTO memory plantDTO ) external onlyOwner {
+    function createPlant(PlantDTO memory plantDTO) external {
+    // function createPlant(PlantDTO memory plantDTO) external onlyOwner {
+        _createPlant(plantDTO, address(this));
+    }
+
+    function _createPlant(PlantDTO memory plantDTO, address _owner) private {
         require(plantIdCounter < type(uint256).max, "Plant ID overflow");
-        
+
         // 创建植物实例
         Plant memory newPlant = Plant({
             plantId: plantIdCounter,
             minEth: plantDTO.minEth,
-            maxEth:plantDTO.maxEth ,
+            maxEth: plantDTO.maxEth,
             startTime: plantDTO.startTime,
             endTime: plantDTO.endTime,
             adoptedTimestamp: 0,
             plantType: plantDTO.plantType,
-            owner: address(this), // 植物所有权归市场合约
+            owner: _owner, // 植物所有权归市场合约
             isAdopted: false,
-            profitDays:plantDTO.profitDays, // 收益天数
+            hasSplit: false,
+            profitDays: plantDTO.profitDays, // 收益天数
             profitRate: plantDTO.profitRate
         });
 
@@ -176,9 +128,9 @@ contract PlantMarket is Ownable, ReentrancyGuard {
 
         // 检查领养价格范围和领养时间
         require(!plant.isAdopted, "Plant is already adopted");
+        require(!plant.hasSplit, "Plant is already split");
         require(
-            msg.value >= plant.minEth &&
-                msg.value <= plant.maxEth,
+            msg.value >= plant.minEth && msg.value <= plant.maxEth,
             "Invalid adoption price"
         );
         require(_isAdoptionTimeValid(plant), "Not adoption time");
@@ -188,7 +140,7 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         plant.isAdopted = true;
 
         // 更新用户领养记录
-         userAdoptionRecords[msg.sender].plantIds.push(_plantId);
+        userAdoptionRecords[msg.sender].plantIds.push(_plantId);
         userAdoptionRecords[msg.sender].adoptionCount[plant.plantType]++;
 
         // 触发事件
@@ -203,27 +155,159 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         payable(owner()).sendValue(msg.value);
     }
 
-      // 检查领养时间是否有效
-    function _isAdoptionTimeValid( Plant memory _plant)
+    // 检查领养时间是否有效
+    function _isAdoptionTimeValid(Plant memory _plant)
         internal
         view
         returns (bool)
     {
         uint256 currentHour = ((block.timestamp + 8 hours) / 3600) % 24;
-        uint256 startTime =_plant.startTime;
+        uint256 startTime = _plant.startTime;
         uint256 endTime = _plant.endTime;
 
         return currentHour >= startTime && currentHour < endTime;
     }
 
     /**
+     * 达到收益天数自动结算，重新投入市场
+     */
+    // function autoSplitAndSettle() public onlyOwner {
+    function autoSplitAndSettle() public  {
+        for (uint256 i = 0; i < plantIdCounter; i++) {
+            Plant storage plant = plants[i];
+            if (
+                plant.isAdopted == true &&
+                block.timestamp >=
+                plant.adoptedTimestamp + plant.profitDays * 60
+                // plant.adoptedTimestamp + plant.profitDays * 1 hours
+            ) {
+                // 结算 更新每种新树的属性，如领养价格范围和收益率等
+                plant.minEth =
+                    plant.minEth +
+                    (plant.minEth * plant.profitRate) /
+                    100;
+
+                if (plant.minEth > 0.75 ether) {
+                    _splitPlant(plant);
+                    plant.hasSplit = true; // 确认分裂完毕
+                } else {
+                    _settlePlant(plant);
+                    plant.isAdopted = false; // 生长完毕重新投入市场
+                }
+            }
+        }
+    }
+
+    function _splitPlant(Plant storage _plant) private {
+        // 分裂逻辑
+        // 创建6种新树并更新其属性
+
+        PlantDTO[] memory newPlants = new PlantDTO[](6);
+
+        newPlants[0] = PlantDTO({
+            minEth: 0.005 ether,
+            maxEth: 0.015 ether,
+            startTime: 14,
+            endTime: 15,
+            plantType: PlantType.Ordinary,
+            profitDays: 7, // 收益天数
+            profitRate: 2100
+        });
+
+        newPlants[1] = PlantDTO({
+            minEth: 0.0151 ether,
+            maxEth: 0.045 ether,
+            startTime: 15,
+            endTime: 16,
+            plantType: PlantType.SmallTree,
+            profitDays: 3, // 收益天数
+            profitRate: 900
+        });
+
+        newPlants[2] = PlantDTO({
+            minEth: 0.0451 ether,
+            maxEth: 0.125 ether,
+            startTime: 16,
+            endTime: 17,
+            plantType: PlantType.MediumTree,
+            profitDays: 5, // 收益天数
+            profitRate: 1250
+        });
+
+        newPlants[3] = PlantDTO({
+            minEth: 0.1251 ether,
+            maxEth: 0.3 ether,
+            startTime: 17,
+            endTime: 18,
+            plantType: PlantType.HighTree,
+            profitDays: 12, // 收益天数
+            profitRate: 2100
+        });
+
+        newPlants[4] = PlantDTO({
+            minEth: 0.3001 ether,
+            maxEth: 0.75 ether,
+            startTime: 18,
+            endTime: 19,
+            plantType: PlantType.KingTree,
+            profitDays: 20, // 收益天数
+            profitRate: 4000
+        });
+
+        newPlants[5] = PlantDTO({
+            minEth: _plant.minEth -
+                newPlants[0].minEth -
+                newPlants[1].minEth -
+                newPlants[2].minEth -
+                newPlants[3].minEth -
+                newPlants[4].minEth,
+            maxEth: 0.3 ether,
+            startTime: 17,
+            endTime: 18,
+            plantType: PlantType.HighTree,
+            profitDays: 7,
+            profitRate: 2100
+        });
+
+        for (uint256 i = 0; i < newPlants.length; i++) {
+            plantIdCounter++;
+            _createPlant(newPlants[i], _plant.owner);
+        }
+    }
+
+    function _settlePlant(Plant storage _plant) private {
+        // 结算逻辑
+        // 根据不同的阈值生长升级植物类型
+        if (_plant.minEth > 0.3001 ether && _plant.minEth <= 0.75 ether) {
+            _plant.plantType = PlantType.KingTree;
+        } else if (_plant.minEth > 0.1251 ether && _plant.minEth <= 0.3 ether) {
+            _plant.plantType = PlantType.HighTree;
+        } else if (
+            _plant.minEth > 0.0451 ether && _plant.minEth <= 0.125 ether
+        ) {
+            _plant.plantType = PlantType.MediumTree;
+        } else if (
+            _plant.minEth > 0.0151 ether && _plant.minEth <= 0.045 ether
+        ) {
+            _plant.plantType = PlantType.SmallTree;
+        } else if (
+            _plant.minEth >= 0.005 ether && _plant.minEth <= 0.015 ether
+        ) {
+            _plant.plantType = PlantType.Ordinary;
+        }
+    }
+
+    /**
      * 查询用户曾经领养过的植物ID
      * @param _user 用户
      */
-   function  getUserAdoptionPlantIds(address _user) public view
-        returns (uint256[] memory) {
+    function getUserAdoptionPlantIds(address _user)
+        public
+        view
+        returns (uint256[] memory)
+    {
         return userAdoptionRecords[_user].plantIds;
-        }
+    }
 
     /**
      * 查询用户曾经领养某类植物次数
@@ -235,60 +319,63 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         view
         returns (uint256)
     {
-         require(
-            _plantType >= PlantType.Ordinary && _plantType <= PlantType.KingTree,
+        require(
+            _plantType >= PlantType.Ordinary &&
+                _plantType <= PlantType.KingTree,
             "Invalid plant type"
         );
         return userAdoptionRecords[_user].adoptionCount[_plantType];
     }
 
-
     /**
      * 查询用户当前已领养的植物
      * @param _user 用户地址
+     * @param includeSplit 是否查询已分裂的植物
      */
-    function getUserAdoptedPlants(address _user) external view returns (Plant[] memory) {
-    uint256 userAdoptedCount = 0;
-    
-    // 计算用户领养的植物数量
-    for (uint256 i = 0; i < plantIdCounter; i++) {
-        Plant storage plant = plants[i];
-        if (plant.owner == _user && plant.isAdopted) {
-            userAdoptedCount++;
+    function getUserAdoptedPlants(address _user, bool includeSplit)
+        external
+        view
+        returns (Plant[] memory)
+    {
+        uint256 userAdoptedCount = 0;
+
+        // 计算用户领养的植物数量
+        for (uint256 i = 0; i < plantIdCounter; i++) {
+            Plant storage plant = plants[i];
+            if (plant.owner == _user && plant.isAdopted && includeSplit) {
+                userAdoptedCount++;
+            }
         }
-    }
-    
-    // 创建用户已领养植物信息列表
-    Plant[] memory userAdoptedPlants = new Plant[](userAdoptedCount);
-    uint256 index = 0;
-    for (uint256 j = 0; j < plantIdCounter; j++) {
-        Plant storage plant = plants[j];
-        if (plant.owner == _user && plant.isAdopted) {
-            userAdoptedPlants[index] = plant;
-            index++;
+
+        // 创建用户已领养植物信息列表
+        Plant[] memory userAdoptedPlants = new Plant[](userAdoptedCount);
+        uint256 index = 0;
+        for (uint256 j = 0; j < plantIdCounter; j++) {
+            Plant storage plant = plants[j];
+            if (plant.owner == _user && plant.isAdopted && includeSplit) {
+                userAdoptedPlants[index] = plant;
+                index++;
+            }
         }
+
+        return userAdoptedPlants;
     }
-    
-    return userAdoptedPlants;
-}
 
     /**
      * 根据Id查询植物信息
      * @param _plantId 植物ID
      */
-    function getPlantInfoById(uint256 _plantId) public view returns(Plant memory) {
+    function getPlantInfoById(uint256 _plantId)
+        public
+        view
+        returns (Plant memory)
+    {
         return plants[_plantId];
     }
 
     // 获取市场上所有未被领养的植物的更多信息列表
-    function getMarketListings()
-        external
-        view
-        returns (Plant[] memory)
-    {
-        Plant[] memory marketListings = new Plant[](
-            plantIdCounter
-        );
+    function getMarketListings() external view returns (Plant[] memory) {
+        Plant[] memory marketListings = new Plant[](plantIdCounter);
 
         uint256 count = 0;
         for (uint256 i = 0; i < plantIdCounter; i++) {

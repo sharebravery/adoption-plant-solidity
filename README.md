@@ -29,6 +29,7 @@ struct Plant {
   uint16 profitRate;
   address owner;
   bool isAdopted;
+  bool hasSplit;
 }
 ```
 
@@ -112,6 +113,14 @@ function adoptPlant(uint256 _plantId) external payable
 function _isAdoptionTimeValid(struct PlantMarket.Plant _plant) internal view returns (bool)
 ```
 
+### autoSplitAndSettle
+
+```solidity
+function autoSplitAndSettle() public
+```
+
+达到收益天数自动结算，重新投入市场
+
 ### getUserAdoptionPlantIds
 
 ```solidity
@@ -144,7 +153,7 @@ function getUserAdoptionRecord(address _user, enum PlantMarket.PlantType _plantT
 ### getUserAdoptedPlants
 
 ```solidity
-function getUserAdoptedPlants(address _user) external view returns (struct PlantMarket.Plant[])
+function getUserAdoptedPlants(address _user, bool includeSplit) external view returns (struct PlantMarket.Plant[])
 ```
 
 查询用户当前已领养的植物
@@ -154,6 +163,7 @@ function getUserAdoptedPlants(address _user) external view returns (struct Plant
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | _user | address | 用户地址 |
+| includeSplit | bool | 是否查询已分裂的植物 |
 
 ### getPlantInfoById
 
