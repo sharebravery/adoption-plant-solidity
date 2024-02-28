@@ -30,7 +30,7 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         uint16 profitRate; // 收益率（单位：百分比）
         address owner; // 拥有者地址
         bool isAdopted; // 是否被领养
-        bool hasSplit; // 用于标记植物是否已经分裂
+        bool isSplit; // 用于标记植物是否已经分裂
     }
 
     struct PlantDTO {
@@ -100,7 +100,7 @@ contract PlantMarket is Ownable, ReentrancyGuard {
             plantType: plantDTO.plantType,
             owner: _owner, // 植物所有权归市场合约
             isAdopted: false,
-            hasSplit: false,
+            isSplit: false,
             profitDays: plantDTO.profitDays, // 收益天数
             profitRate: plantDTO.profitRate
         });
@@ -121,7 +121,7 @@ contract PlantMarket is Ownable, ReentrancyGuard {
 
         // 检查领养价格范围和领养时间
         require(!plant.isAdopted, "Plant is already adopted");
-        require(!plant.hasSplit, "Plant is already split");
+        require(!plant.isSplit, "Plant is already split");
         require(
             msg.value >= plant.minEth && msg.value <= plant.maxEth,
             "Invalid adoption price"
@@ -144,8 +144,11 @@ contract PlantMarket is Ownable, ReentrancyGuard {
             block.timestamp
         );
 
+        // 转移支付金额给合约拥有者
+        // payable(owner()).sendValue(msg.value);
+
         // 转移支付金额给植物所有者（之前是市场合约）
-        payable(owner()).sendValue(msg.value);
+        payable(plant.owner).sendValue(msg.value);
     }
 
     // 检查领养时间是否有效
@@ -174,17 +177,17 @@ contract PlantMarket is Ownable, ReentrancyGuard {
     if (
         plant.isAdopted == true &&
         block.timestamp >= 
-        plant.adoptedTimestamp + plant.profitDays * 60
+        plant.adoptedTimestamp + 1 * 60
          // plant.adoptedTimestamp + plant.profitDays * 1 hours
     ) {
         // 结算 更新每种新树的属性，如领养价格范围和收益率等
         plant.minEth =
             plant.minEth +
-            (plant.minEth * plant.profitRate) / 100;
+            (plant.minEth * plant.profitRate) / 10000;
 
         if (plant.minEth > 0.75 ether) {
             _splitPlant(plant);
-            plant.hasSplit = true; // 确认分裂完毕
+            plant.isSplit = true; // 确认分裂完毕
         } else {
             _settlePlant(plant);
             plant.isAdopted = false; // 生长完毕重新投入市场
@@ -213,7 +216,7 @@ contract PlantMarket is Ownable, ReentrancyGuard {
 
     //             if (plant.minEth > 0.75 ether) {
     //                 _splitPlant(plant);
-    //                 plant.hasSplit = true; // 确认分裂完毕
+    //                 plant.isSplit = true; // 确认分裂完毕
     //             } else {
     //                 _settlePlant(plant);
     //                 plant.isAdopted = false; // 生长完毕重新投入市场
@@ -366,7 +369,7 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         // 计算用户领养的植物数量
         for (uint256 i = 0; i < plantIdCounter; i++) {
             Plant storage plant = plants[i];
-            if (plant.owner == _user && plant.isAdopted && includeSplit) {
+            if (plant.owner == _user && plant.isAdopted && (includeSplit || plant.isSplit)) {
                 userAdoptedCount++;
             }
         }
@@ -376,7 +379,7 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         uint256 index = 0;
         for (uint256 j = 0; j < plantIdCounter; j++) {
             Plant storage plant = plants[j];
-            if (plant.owner == _user && plant.isAdopted && includeSplit) {
+            if (plant.owner == _user && plant.isAdopted && (includeSplit || plant.isSplit)) {
                 userAdoptedPlants[index] = plant;
                 index++;
             }

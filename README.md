@@ -29,7 +29,7 @@ struct Plant {
   uint16 profitRate;
   address owner;
   bool isAdopted;
-  bool hasSplit;
+  bool isSplit;
 }
 ```
 
