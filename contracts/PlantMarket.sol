@@ -146,6 +146,8 @@ contract PlantMarket is Ownable, ReentrancyGuard {
             // 更新植物信息
             plant.isAdopted = true;
 
+            plant.adoptedTimestamp = block.timestamp;
+
             // 更新用户领养记录
             userAdoptionRecords[msg.sender].plantIds.push(_plantId);
             userAdoptionRecords[msg.sender].adoptionCount[plant.plantType]++;
