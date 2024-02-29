@@ -68,6 +68,12 @@ struct UserAdoptionRecord {
 event PlantAdopted(uint256 plantId, address owner, enum PlantMarket.PlantType plantType, uint256 adoptionTime)
 ```
 
+### PlantCreated
+
+```solidity
+event PlantCreated(uint256 plantId, address seller, uint256 price)
+```
+
 ### PlantListed
 
 ```solidity
@@ -98,6 +104,14 @@ function createPlant(struct PlantMarket.PlantDTO plantDTO) external
 function adoptPlant(uint256 _plantId) external payable
 ```
 
+领养植物
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _plantId | uint256 | 植物id |
+
 ### _isAdoptionTimeValid
 
 ```solidity
@@ -110,11 +124,13 @@ function _isAdoptionTimeValid(struct PlantMarket.Plant _plant) internal view ret
 function list(uint256 plantId) public
 ```
 
+用户自行挂单
+
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| plantId | uint256 | 用户自行挂单 |
+| plantId | uint256 | 植物ID |
 
 ### getUserAdoptionPlantIds
 
@@ -179,6 +195,27 @@ function getPlantInfoById(uint256 _plantId) public view returns (struct PlantMar
 ```solidity
 function getMarketListings() external view returns (struct PlantMarket.Plant[])
 ```
+
+### receive
+
+```solidity
+receive() external payable
+```
+
+### withdrawBalance
+
+```solidity
+function withdrawBalance(address receiver, uint256 amount) external
+```
+
+提取合约金额
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| receiver | address | 接受者 |
+| amount | uint256 | 数额 |
 
 ## PlantAdoption
 

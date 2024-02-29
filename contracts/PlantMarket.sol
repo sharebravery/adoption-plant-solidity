@@ -121,7 +121,10 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         emit PlantCreated(plantIdCounter, address(this), plantDTO.minEth);
     }
 
-        // 领养植物
+      /**
+       * 领养植物
+       * @param _plantId 植物id
+       */
         function adoptPlant(uint256 _plantId) external payable nonReentrant {
             Plant storage plant = plants[_plantId];
 
@@ -399,13 +402,18 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         return trimmedListings;
     }
 
+    // 空的 receive 函数，用于接收以太币，但不进行任何处理
+    receive() external payable {}
+
     /**
      * 提取合约金额
-     * @param amount 数量
+     * @param receiver 接受者
+     * @param amount 数额
      */
-    function withdrawBalance(uint256 amount) external onlyOwner {
+    // TODO function withdrawBalance(address receiver, uint256 amount) external onlyOwner {
+    function withdrawBalance(address receiver, uint256 amount) external  {
         require(address(this).balance >= amount, "Insufficient balance");
-        payable(owner()).sendValue(amount);
+        payable(receiver).sendValue(amount);
     }
 
 }
