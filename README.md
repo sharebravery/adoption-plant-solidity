@@ -1,5 +1,19 @@
 # Solidity API
 
+## PlantERC20
+
+### constructor
+
+```solidity
+constructor() public
+```
+
+### mint
+
+```solidity
+function mint(address account, uint256 amount) public
+```
+
 ## PlantMarket
 
 ### PlantType
@@ -89,7 +103,7 @@ event PlantSold(uint256 plantId, address buyer, address seller, uint256 price)
 ### constructor
 
 ```solidity
-constructor() public
+constructor(address tokenContractAddress) public
 ```
 
 ### createPlant
@@ -195,27 +209,6 @@ function getPlantInfoById(uint256 _plantId) public view returns (struct PlantMar
 ```solidity
 function getMarketListings() external view returns (struct PlantMarket.Plant[])
 ```
-
-### receive
-
-```solidity
-receive() external payable
-```
-
-### withdrawBalance
-
-```solidity
-function withdrawBalance(address receiver, uint256 amount) external
-```
-
-提取合约金额
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| receiver | address | 接受者 |
-| amount | uint256 | 数额 |
 
 ## PlantAdoption
 

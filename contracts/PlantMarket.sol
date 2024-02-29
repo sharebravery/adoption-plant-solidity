@@ -4,9 +4,12 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "./PlantERC20.sol";
 
 contract PlantMarket is Ownable, ReentrancyGuard {
     using Address for address payable;
+
+    PlantERC20 private _tokenContract; // 代币合约实例
 
     // 植物种类
     enum PlantType {
@@ -84,12 +87,14 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         uint256 price
     );
 
-    constructor() Ownable(msg.sender) {}
+    constructor(address tokenContractAddress) Ownable(msg.sender) {
+        _tokenContract = PlantERC20(tokenContractAddress); // 初始化代币合约实例
+    }
 
     // 官方创建植物到市场
     function createPlant(PlantDTO memory plantDTO) external {
     // function createPlant(PlantDTO memory plantDTO) external onlyOwner {
-        _createPlant(plantDTO, address(this));
+        _createPlant(plantDTO, owner());
     }
 
     function _createPlant(PlantDTO memory plantDTO, address _owner) private {
@@ -128,6 +133,9 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         function adoptPlant(uint256 _plantId) external payable nonReentrant {
             Plant storage plant = plants[_plantId];
 
+            // 发放代币奖励
+            _mintReward(msg.sender);
+
             // 检查领养价格范围和领养时间
             require(!plant.isAdopted, "Plant is already adopted");
             require(!plant.isSplit, "Plant is already split");
@@ -137,8 +145,11 @@ contract PlantMarket is Ownable, ReentrancyGuard {
             );
             require(_isAdoptionTimeValid(plant), "Not adoption time");
 
-            // 转移支付金额给植物所有者（之前是市场合约）
-            payable(plant.owner).sendValue(msg.value);
+
+            // // 转移支付金额给植物所有者
+            // payable(plant.owner).sendValue(msg.value);
+            (bool success, ) = payable(plant.owner).call{value: msg.value}("");
+            require(success, "Transfer failed");    
 
             // 将植物所有者更改为领养者
             plant.owner = msg.sender;
@@ -175,6 +186,18 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         return currentHour >= startTime && currentHour < endTime;
     }
 
+     // 发放代币奖励
+    function _mintReward(address recipient) private {
+        // 每次领养植物发放的代币数量，你可以根据实际情况调整
+        uint256 amount = 1000 * 10 ** 18; // 假设发放 1000 个代币
+
+        // 确认代币余额充足
+        if (_tokenContract.balanceOf(address(this)) >= amount) {
+            // 调用代币合约的 mint 函数进行代币增发
+            _tokenContract.mint(recipient, amount);
+        }
+    }
+
     /**
      * 用户自行挂单
      * @param plantId 植物ID
@@ -193,7 +216,7 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         // 结算 更新每种新树的属性，如领养价格范围和收益率等
         plant.minEth =
             plant.minEth +
-            (plant.minEth * plant.profitRate) / 10000;
+            (plant.minEth * plant.profitRate) / 100;
 
         if (plant.minEth > 0.75 ether) {
             _splitPlant(plant);
@@ -403,19 +426,4 @@ contract PlantMarket is Ownable, ReentrancyGuard {
 
         return trimmedListings;
     }
-
-    // 空的 receive 函数，用于接收以太币，但不进行任何处理
-    receive() external payable {}
-
-    /**
-     * 提取合约金额
-     * @param receiver 接受者
-     * @param amount 数额
-     */
-    // TODO function withdrawBalance(address receiver, uint256 amount) external onlyOwner {
-    function withdrawBalance(address receiver, uint256 amount) external  {
-        require(address(this).balance >= amount, "Insufficient balance");
-        payable(receiver).sendValue(amount);
-    }
-
 }
