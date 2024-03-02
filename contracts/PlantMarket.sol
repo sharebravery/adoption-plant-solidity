@@ -93,7 +93,7 @@ contract PlantMarket is Ownable, ReentrancyGuard {
 
     // 官方创建植物到市场
     function createPlant(PlantDTO memory plantDTO) external {
-    // function createPlant(PlantDTO memory plantDTO) external onlyOwner {
+        // function createPlant(PlantDTO memory plantDTO) external onlyOwner {
         _createPlant(plantDTO, owner());
     }
 
@@ -126,52 +126,50 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         emit PlantCreated(plantIdCounter, address(this), plantDTO.minEth);
     }
 
-      /**
-       * 领养植物
-       * @param _plantId 植物id
-       */
-        function adoptPlant(uint256 _plantId) external payable nonReentrant {
-            Plant storage plant = plants[_plantId];
+    /**
+     * 领养植物
+     * @param _plantId 植物id
+     */
+    function adoptPlant(uint256 _plantId) external payable nonReentrant {
+        Plant storage plant = plants[_plantId];
 
-            // 发放代币奖励
-            _mintReward(msg.sender);
+        // 发放代币奖励
+        _mintReward(msg.sender);
 
-            // 检查领养价格范围和领养时间
-            require(!plant.isAdopted, "Plant is already adopted");
-            require(!plant.isSplit, "Plant is already split");
-            require(
-                msg.value >= plant.minEth && msg.value <= plant.maxEth,
-                "Invalid adoption price"
-            );
-            require(_isAdoptionTimeValid(plant), "Not adoption time");
+        // 检查领养价格范围和领养时间
+        require(!plant.isAdopted, "Plant is already adopted");
+        require(!plant.isSplit, "Plant is already split");
+        require(
+            msg.value >= plant.minEth && msg.value <= plant.maxEth,
+            "Invalid adoption price"
+        );
+        require(_isAdoptionTimeValid(plant), "Not adoption time");
 
+        // // 转移支付金额给植物所有者
+        // payable(plant.owner).sendValue(msg.value);
+        (bool success, ) = payable(plant.owner).call{value: msg.value}("");
+        require(success, "Transfer failed");
 
-            // // 转移支付金额给植物所有者
-            // payable(plant.owner).sendValue(msg.value);
-            (bool success, ) = payable(plant.owner).call{value: msg.value}("");
-            require(success, "Transfer failed");    
+        // 将植物所有者更改为领养者
+        plant.owner = msg.sender;
 
-            // 将植物所有者更改为领养者
-            plant.owner = msg.sender;
+        // 更新植物信息
+        plant.isAdopted = true;
 
-            // 更新植物信息
-            plant.isAdopted = true;
+        plant.adoptedTimestamp = block.timestamp;
 
-            plant.adoptedTimestamp = block.timestamp;
+        // 更新用户领养记录
+        userAdoptionRecords[msg.sender].plantIds.push(_plantId);
+        userAdoptionRecords[msg.sender].adoptionCount[plant.plantType]++;
 
-            // 更新用户领养记录
-            userAdoptionRecords[msg.sender].plantIds.push(_plantId);
-            userAdoptionRecords[msg.sender].adoptionCount[plant.plantType]++;
-
-            // 触发事件
-            emit PlantAdopted(
-                _plantId,
-                msg.sender,
-                plant.plantType,
-                block.timestamp
-            );
-
-        }
+        // 触发事件
+        emit PlantAdopted(
+            _plantId,
+            msg.sender,
+            plant.plantType,
+            block.timestamp
+        );
+    }
 
     // 检查领养时间是否有效
     function _isAdoptionTimeValid(Plant memory _plant)
@@ -186,37 +184,37 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         return currentHour >= startTime && currentHour < endTime;
     }
 
-     // 发放代币奖励
+    // 发放代币奖励
     function _mintReward(address recipient) private {
         // 每次领养植物发放的代币数量，你可以根据实际情况调整
-        uint256 amount = 1000 * 10 ** 18; // 假设发放 1000 个代币
+        uint256 amount = 1000 * 10**18; // 假设发放 1000 个代币
 
         // 确认代币余额充足
-        if (_tokenContract.balanceOf(address(this)) >= amount) {
-            // 调用代币合约的 mint 函数进行代币增发
-            _tokenContract.mint(recipient, amount);
-        }
+        // if (_tokenContract.balanceOf(address(this)) >= amount) {
+        // 调用代币合约的 mint 函数进行代币增发
+        _tokenContract.mintFromMarket(recipient, amount);
+        // }
     }
 
     /**
      * 用户自行挂单
      * @param plantId 植物ID
      */
-   function list(uint256 plantId) public {
-    require(plantId < plantIdCounter, "Invalid plant ID");
+    function list(uint256 plantId) public {
+        require(plantId < plantIdCounter, "Invalid plant ID");
 
-    Plant storage plant = plants[plantId];
+        Plant storage plant = plants[plantId];
 
-    require(msg.sender == plant.owner, "Not owner");
-    require(plant.isAdopted, "Plant is not adopted");
-    require(!(block.timestamp >= 
-        plant.adoptedTimestamp + 2 * 60),"Not reaching the contract term");
-         // plant.adoptedTimestamp + plant.profitDays * 1 hours
- 
+        require(msg.sender == plant.owner, "Not owner");
+        require(plant.isAdopted, "Plant is not adopted");
+        require(
+            !(block.timestamp >= plant.adoptedTimestamp + 2 * 60),
+            "Not reaching the contract term"
+        );
+        // plant.adoptedTimestamp + plant.profitDays * 1 hours
+
         // 结算 更新每种新树的属性，如领养价格范围和收益率等
-        plant.minEth =
-            plant.minEth +
-            (plant.minEth * plant.profitRate) / 100;
+        plant.minEth = plant.minEth + (plant.minEth * plant.profitRate) / 100;
 
         if (plant.minEth > 0.75 ether) {
             _splitPlant(plant);
@@ -226,9 +224,8 @@ contract PlantMarket is Ownable, ReentrancyGuard {
             plant.isAdopted = false; // 生长完毕重新投入市场
         }
 
-      emit PlantListed(plantId, msg.sender, plant.minEth);
-}
-
+        emit PlantListed(plantId, msg.sender, plant.minEth);
+    }
 
     function _splitPlant(Plant storage _plant) private {
         // 分裂逻辑
@@ -374,7 +371,11 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         // 计算用户领养的植物数量
         for (uint256 i = 0; i < plantIdCounter; i++) {
             Plant storage plant = plants[i];
-            if (plant.owner == _user && plant.isAdopted && (includeSplit || plant.isSplit)) {
+            if (
+                plant.owner == _user &&
+                plant.isAdopted &&
+                (includeSplit || plant.isSplit)
+            ) {
                 userAdoptedCount++;
             }
         }
@@ -384,7 +385,11 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         uint256 index = 0;
         for (uint256 j = 0; j < plantIdCounter; j++) {
             Plant storage plant = plants[j];
-            if (plant.owner == _user && plant.isAdopted && (includeSplit || plant.isSplit)) {
+            if (
+                plant.owner == _user &&
+                plant.isAdopted &&
+                (includeSplit || plant.isSplit)
+            ) {
                 userAdoptedPlants[index] = plant;
                 index++;
             }

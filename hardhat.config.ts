@@ -1,6 +1,9 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import 'solidity-docgen';
+import * as dotenv from 'dotenv';
+
+dotenv.config();
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -24,7 +27,7 @@ const config: HardhatUserConfig = {
     // },
     sepolia: {
       url: "https://polygon-mumbai.g.alchemy.com/v2/k_wjgD_vDNows-mCiUJ_ikKh-0Gd2c0C",
-      accounts: []
+      accounts: [process.env.PRIVATE_KEY || ''] // 使用环境变量中的私钥
     }
   },
 };

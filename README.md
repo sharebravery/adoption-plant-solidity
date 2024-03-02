@@ -8,10 +8,16 @@
 constructor() public
 ```
 
-### mint
+### mintFromMarket
 
 ```solidity
-function mint(address account, uint256 amount) public
+function mintFromMarket(address account, uint256 amount) external
+```
+
+### setPlantMarketContract
+
+```solidity
+function setPlantMarketContract(address plantMarketContract) external
 ```
 
 ## PlantMarket

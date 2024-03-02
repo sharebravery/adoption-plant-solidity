@@ -11,21 +11,37 @@ async function main() {
 
   console.log("Deploying contact with account:", deployer.address);
 
+  // 部署 PlantERC20 合约
+  const PlantERC20 = await ethers.getContractFactory("PlantERC20");
+  const plantERC20 = await PlantERC20.deploy();
+  await plantERC20.waitForDeployment();
+
+  const plantERC20Address = await plantERC20.getAddress();
+
+  console.log(
+    "\x1b[34mPlantERC20 deployed to: \x1b[0m",
+    "\x1b[34m" + plantERC20Address + "\x1b[0m"
+  );
+
+  // 部署 PlantMarket 合约，并传入 PlantERC20 合约地址
   const PlantMarket = await ethers.getContractFactory("PlantMarket");
-  const PlantMarketFactory = await PlantMarket.deploy();
-  await PlantMarketFactory.waitForDeployment();
+  const plantMarket = await PlantMarket.deploy(plantERC20Address);
+  await plantMarket.waitForDeployment();
 
-  // // 调用 createPlant 函数
-  // await PlantMarketFactory.createPlant(0);
-  // await PlantMarketFactory.createPlant(1);
+  const plantMarketAddress = await plantMarket.getAddress();
 
-  console.log("PlantMarket deployed to:", await PlantMarketFactory.getAddress());
+  console.log(
+    "\x1b[34mPlantMarket deployed to: \x1b[0m",
+    "\x1b[34m" + plantMarketAddress + "\x1b[0m"
+  );
 
+  // 设置 PlantERC20 合约中的 PlantMarket 合约地址
+  await plantERC20.setPlantMarketContract(plantMarketAddress);
 
   console.log(
     `Lock with ${ethers.formatEther(
       lockedAmount
-    )}ETH and unlock timestamp ${unlockTime} deployed to ${PlantMarketFactory.target}`
+    )}ETH and unlock timestamp ${unlockTime} deployed to ${plantMarketAddress}`
   );
 }
 
