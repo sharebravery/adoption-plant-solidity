@@ -2,6 +2,18 @@
 
 ## PlantERC20
 
+### UnauthorizedAccess
+
+```solidity
+error UnauthorizedAccess()
+```
+
+### ExceedsSupplyLimit
+
+```solidity
+error ExceedsSupplyLimit()
+```
+
 ### constructor
 
 ```solidity
@@ -18,6 +30,12 @@ function mintFromMarket(address account, uint256 amount) external
 
 ```solidity
 function setPlantMarketContract(address plantMarketContract) external
+```
+
+### mintableBalance
+
+```solidity
+function mintableBalance() external view returns (uint256)
 ```
 
 ## PlantMarket
@@ -53,17 +71,36 @@ struct Plant {
 }
 ```
 
-### PlantDTO
+### UserAdoptionRecord
 
 ```solidity
-struct PlantDTO {
+struct UserAdoptionRecord {
+  uint256[] plantIds;
+  mapping(enum PlantMarket.PlantType => uint256) adoptionCount;
+}
+```
+
+### AdoptionPriceRange
+
+```solidity
+struct AdoptionPriceRange {
   uint256 minEth;
   uint256 maxEth;
   uint8 startTime;
   uint8 endTime;
-  enum PlantMarket.PlantType plantType;
   uint8 profitDays;
   uint16 profitRate;
+  uint256 rewardAmounts;
+}
+```
+
+### PlantDTO
+
+```solidity
+struct PlantDTO {
+  enum PlantMarket.PlantType plantType;
+  uint256 minEth;
+  uint256 maxEth;
 }
 ```
 
@@ -73,13 +110,10 @@ struct PlantDTO {
 mapping(uint256 => struct PlantMarket.Plant) plants
 ```
 
-### UserAdoptionRecord
+### priceRanges
 
 ```solidity
-struct UserAdoptionRecord {
-  uint256[] plantIds;
-  mapping(enum PlantMarket.PlantType => uint256) adoptionCount;
-}
+mapping(enum PlantMarket.PlantType => struct PlantMarket.AdoptionPriceRange) priceRanges
 ```
 
 ### PlantAdopted
@@ -106,6 +140,72 @@ event PlantListed(uint256 plantId, address seller, uint256 price)
 event PlantSold(uint256 plantId, address buyer, address seller, uint256 price)
 ```
 
+### PlantIDOverflow
+
+```solidity
+error PlantIDOverflow()
+```
+
+### TransferFailed
+
+```solidity
+error TransferFailed()
+```
+
+### PlantAlreadyAdopted
+
+```solidity
+error PlantAlreadyAdopted()
+```
+
+### PlantAlreadySplit
+
+```solidity
+error PlantAlreadySplit()
+```
+
+### InvalidAdoptionPrice
+
+```solidity
+error InvalidAdoptionPrice()
+```
+
+### NotAdoptionTime
+
+```solidity
+error NotAdoptionTime()
+```
+
+### InvalidPlantID
+
+```solidity
+error InvalidPlantID()
+```
+
+### NotOwner
+
+```solidity
+error NotOwner()
+```
+
+### PlantNotAdopted
+
+```solidity
+error PlantNotAdopted()
+```
+
+### NotReachingContractTerm
+
+```solidity
+error NotReachingContractTerm()
+```
+
+### InvalidPlantType
+
+```solidity
+error InvalidPlantType()
+```
+
 ### constructor
 
 ```solidity
@@ -115,7 +215,7 @@ constructor(address tokenContractAddress) public
 ### createPlant
 
 ```solidity
-function createPlant(struct PlantMarket.PlantDTO plantDTO) external
+function createPlant(struct PlantMarket.PlantDTO newPlantDTO, address _owner) public
 ```
 
 ### adoptPlant
@@ -123,14 +223,6 @@ function createPlant(struct PlantMarket.PlantDTO plantDTO) external
 ```solidity
 function adoptPlant(uint256 _plantId) external payable
 ```
-
-领养植物
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| _plantId | uint256 | 植物id |
 
 ### _isAdoptionTimeValid
 
@@ -144,27 +236,11 @@ function _isAdoptionTimeValid(struct PlantMarket.Plant _plant) internal view ret
 function list(uint256 plantId) public
 ```
 
-用户自行挂单
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| plantId | uint256 | 植物ID |
-
 ### getUserAdoptionPlantIds
 
 ```solidity
 function getUserAdoptionPlantIds(address _user) public view returns (uint256[])
 ```
-
-查询用户曾经领养过的植物ID
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| _user | address | 用户 |
 
 ### getUserAdoptionRecord
 
@@ -172,43 +248,17 @@ function getUserAdoptionPlantIds(address _user) public view returns (uint256[])
 function getUserAdoptionRecord(address _user, enum PlantMarket.PlantType _plantType) public view returns (uint256)
 ```
 
-查询用户曾经领养某类植物次数
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| _user | address | 用户 |
-| _plantType | enum PlantMarket.PlantType | 植物类型 |
-
 ### getUserAdoptedPlants
 
 ```solidity
 function getUserAdoptedPlants(address _user, bool includeSplit) external view returns (struct PlantMarket.Plant[])
 ```
 
-查询用户当前已领养的植物
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| _user | address | 用户地址 |
-| includeSplit | bool | 是否查询已分裂的植物 |
-
 ### getPlantInfoById
 
 ```solidity
 function getPlantInfoById(uint256 _plantId) public view returns (struct PlantMarket.Plant)
 ```
-
-根据Id查询植物信息
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| _plantId | uint256 | 植物ID |
 
 ### getMarketListings
 
