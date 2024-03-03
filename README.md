@@ -58,13 +58,8 @@ enum PlantType {
 struct Plant {
   uint256 plantId;
   enum PlantMarket.PlantType plantType;
-  uint256 minEth;
-  uint256 maxEth;
-  uint8 startTime;
-  uint8 endTime;
+  uint256 valueEth;
   uint256 adoptedTimestamp;
-  uint8 profitDays;
-  uint16 profitRate;
   address owner;
   bool isAdopted;
   bool isSplit;
@@ -227,7 +222,7 @@ function adoptPlant(uint256 _plantId) external payable
 ### _isAdoptionTimeValid
 
 ```solidity
-function _isAdoptionTimeValid(struct PlantMarket.Plant _plant) internal view returns (bool)
+function _isAdoptionTimeValid(enum PlantMarket.PlantType plantType) internal view returns (bool)
 ```
 
 ### list

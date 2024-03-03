@@ -22,13 +22,8 @@ contract PlantMarket is Ownable, ReentrancyGuard {
     struct Plant {
         uint256 plantId;
         PlantType plantType;
-        uint256 minEth;
-        uint256 maxEth;
-        uint8 startTime;
-        uint8 endTime;
+        uint256 valueEth;
         uint256 adoptedTimestamp;
-        uint8 profitDays;
-        uint16 profitRate;
         address owner;
         bool isAdopted;
         bool isSplit;
@@ -155,17 +150,18 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         ];
         Plant memory newPlant = Plant({
             plantId: plantIdCounter,
-            minEth: rangeData.minEth,
-            maxEth: rangeData.maxEth,
-            startTime: rangeData.startTime,
-            endTime: rangeData.endTime,
+            valueEth: rangeData.minEth,
+            // minEth: rangeData.minEth,
+            // maxEth: rangeData.maxEth,
+            // startTime: rangeData.startTime,
+            // endTime: rangeData.endTime,
             adoptedTimestamp: 0,
             plantType: newPlantDTO.plantType,
             owner: _owner,
             isAdopted: false,
-            isSplit: false,
-            profitDays: rangeData.profitDays,
-            profitRate: rangeData.profitRate
+            isSplit: false
+            // profitDays: rangeData.profitDays,
+            // profitRate: rangeData.profitRate
         });
         plants[plantIdCounter] = newPlant;
         plantIdCounter++;
@@ -184,10 +180,13 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         if (plant.isSplit) {
             revert PlantAlreadySplit();
         }
-        if (msg.value < plant.minEth || msg.value > plant.maxEth) {
+        if (
+            msg.value < priceRanges[plant.plantType].minEth ||
+            msg.value > priceRanges[plant.plantType].maxEth
+        ) {
             revert InvalidAdoptionPrice();
         }
-        if (!_isAdoptionTimeValid(plant)) {
+        if (!_isAdoptionTimeValid(plant.plantType)) {
             revert NotAdoptionTime();
         }
 
@@ -210,10 +209,13 @@ contract PlantMarket is Ownable, ReentrancyGuard {
     }
 
     function _isAdoptionTimeValid(
-        Plant memory _plant
+        PlantType plantType
     ) internal view returns (bool) {
         uint256 currentHour = ((block.timestamp + 8 hours) / 3600) % 24;
-        return currentHour >= _plant.startTime && currentHour < _plant.endTime;
+
+        return
+            currentHour >= priceRanges[plantType].startTime &&
+            currentHour < priceRanges[plantType].endTime;
     }
 
     function _mintReward(PlantType plantType, address recipient) private {
@@ -229,30 +231,41 @@ contract PlantMarket is Ownable, ReentrancyGuard {
     }
 
     function list(uint256 plantId) public {
-        if (plantId >= plantIdCounter) {
+        if (plantId > plantIdCounter) {
             revert InvalidPlantID();
         }
+
         Plant storage plant = plants[plantId];
+
         if (msg.sender != plant.owner) {
             revert NotOwner();
         }
         if (!plant.isAdopted) {
             revert PlantNotAdopted();
         }
-        if (block.timestamp >= plant.adoptedTimestamp + plant.profitDays * 60) {
+
+        if (
+            block.timestamp >=
+            plant.adoptedTimestamp +
+                priceRanges[plant.plantType].profitDays *
+                60
+        ) {
             revert NotReachingContractTerm();
             // plant.adoptedTimestamp + plant.profitDays * 1 hours
         }
 
-        plant.minEth = plant.minEth + (plant.minEth * plant.profitRate) / 100;
-        if (plant.minEth > 0.75 ether) {
+        plant.valueEth =
+            plant.valueEth +
+            (plant.valueEth * priceRanges[plant.plantType].profitRate) /
+            100;
+        if (plant.valueEth > 0.75 ether) {
             _splitPlant(plant);
             plant.isSplit = true;
         } else {
             _settlePlant(plant);
             plant.isAdopted = false;
         }
-        emit PlantListed(plantId, msg.sender, plant.minEth);
+        emit PlantListed(plantId, msg.sender, plant.valueEth);
     }
 
     function _splitPlant(Plant storage _plant) private {
@@ -268,10 +281,19 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         // 计算之前所有植物分裂出去的总和
         for (uint256 i = 0; i < types.length - 1; i++) {
             totalEthFromPreviousPlants += priceRanges[types[i]].minEth;
+
+            // 创建新的植物实例
+            PlantDTO memory newPlant = PlantDTO({
+                plantType: types[i],
+                minEth: priceRanges[types[i]].minEth,
+                maxEth: priceRanges[types[i]].maxEth
+            });
+
+            createPlant(newPlant, _plant.owner);
         }
 
         // 剩余的 ETH 是当前植物的 minEth 减去之前所有植物分裂出去的总和
-        uint256 remainingEth = _plant.minEth - totalEthFromPreviousPlants;
+        uint256 remainingEth = _plant.valueEth - totalEthFromPreviousPlants;
 
         // 创建新的植物实例
         PlantDTO memory lastPlant = PlantDTO({
@@ -283,20 +305,22 @@ contract PlantMarket is Ownable, ReentrancyGuard {
     }
 
     function _settlePlant(Plant storage _plant) private {
-        if (_plant.minEth > 0.3001 ether && _plant.minEth <= 0.75 ether) {
+        if (_plant.valueEth > 0.3001 ether && _plant.valueEth <= 0.75 ether) {
             _plant.plantType = PlantType.KingTree;
-        } else if (_plant.minEth > 0.1251 ether && _plant.minEth <= 0.3 ether) {
+        } else if (
+            _plant.valueEth > 0.1251 ether && _plant.valueEth <= 0.3 ether
+        ) {
             _plant.plantType = PlantType.HighTree;
         } else if (
-            _plant.minEth > 0.0451 ether && _plant.minEth <= 0.125 ether
+            _plant.valueEth > 0.0451 ether && _plant.valueEth <= 0.125 ether
         ) {
             _plant.plantType = PlantType.MediumTree;
         } else if (
-            _plant.minEth > 0.0151 ether && _plant.minEth <= 0.045 ether
+            _plant.valueEth > 0.0151 ether && _plant.valueEth <= 0.045 ether
         ) {
             _plant.plantType = PlantType.SmallTree;
         } else if (
-            _plant.minEth >= 0.005 ether && _plant.minEth <= 0.015 ether
+            _plant.valueEth >= 0.005 ether && _plant.valueEth <= 0.015 ether
         ) {
             _plant.plantType = PlantType.Ordinary;
         }
