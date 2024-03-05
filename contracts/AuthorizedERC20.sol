@@ -8,11 +8,14 @@ contract AuthorizedERC20 is ERC20Burnable, Ownable {
     uint256 private constant SUPPLY_LIMIT = 1000000000 * 10 ** 18;
 
     mapping(address => bool) private _authorizedMinters;
+    bool private _isOneTimeAuthorizationDone;
 
     // 错误：未经授权的访问
     error UnauthorizedAccess();
     // 错误：超出供应限制
     error ExceedsSupplyLimit();
+    // 错误：已经进行过一次性授权
+    error OneTimeAuthorizationDone();
 
     constructor(
         string memory name_,
@@ -32,19 +35,13 @@ contract AuthorizedERC20 is ERC20Burnable, Ownable {
     }
 
     /**
-     * 授权地址调用 mint 函数
+     * 一次性授权地址调用 mint 函数
      * @param minter minter
      */
-    function authorizeMinter(address minter) external onlyOwner {
+    function authorizeOnce(address minter) external onlyOwner {
+        if (_isOneTimeAuthorizationDone) revert OneTimeAuthorizationDone();
         _authorizedMinters[minter] = true;
-    }
-
-    /**
-     * 取消授权地址调用 mint 函数
-     * @param minter minter
-     */
-    function revokeMinterAuthorization(address minter) external onlyOwner {
-        _authorizedMinters[minter] = false;
+        _isOneTimeAuthorizationDone = true;
     }
 
     /**

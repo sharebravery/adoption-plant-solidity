@@ -14,6 +14,12 @@ error UnauthorizedAccess()
 error ExceedsSupplyLimit()
 ```
 
+### OneTimeAuthorizationDone
+
+```solidity
+error OneTimeAuthorizationDone()
+```
+
 ### constructor
 
 ```solidity
@@ -35,27 +41,13 @@ function mint(address account, uint256 amount) external
 | account | address | account |
 | amount | uint256 | amount |
 
-### authorizeMinter
+### authorizeOnce
 
 ```solidity
-function authorizeMinter(address minter) external
+function authorizeOnce(address minter) external
 ```
 
-授权地址调用 mint 函数
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| minter | address | minter |
-
-### revokeMinterAuthorization
-
-```solidity
-function revokeMinterAuthorization(address minter) external
-```
-
-取消授权地址调用 mint 函数
+一次性授权地址调用 mint 函数
 
 #### Parameters
 
@@ -70,14 +62,6 @@ function mintableBalance() external view returns (uint256)
 ```
 
 查询还可以 mint 的余额
-
-### getSupplyLimit
-
-```solidity
-function getSupplyLimit() external pure returns (uint256)
-```
-
-获取合约的供应限制
 
 ### isMinterAuthorized
 
@@ -127,6 +111,7 @@ struct Plant {
 struct UserAdoptionRecord {
   uint256[] plantIds;
   mapping(enum PlantMarket.PlantType => uint256) adoptionCount;
+  mapping(enum PlantMarket.PlantType => uint256) lastScheduledDay;
 }
 ```
 
@@ -262,6 +247,12 @@ error InvalidPlantType()
 error InsufficientTokens()
 ```
 
+### OnlyScheduleAdoptionOncePerDay
+
+```solidity
+error OnlyScheduleAdoptionOncePerDay()
+```
+
 ### constructor
 
 ```solidity
@@ -275,6 +266,12 @@ function scheduleAdoption(enum PlantMarket.PlantType plantType) external
 ```
 
 预约
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| plantType | enum PlantMarket.PlantType | PlantType |
 
 ### createPlant
 

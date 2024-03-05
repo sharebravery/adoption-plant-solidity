@@ -18,7 +18,7 @@ async function main() {
   const plantERC20Address = await plantERC20.getAddress();
 
   console.log(
-    "\x1b[34mPlantERC20 deployed to: \x1b[0m",
+    "\x1b[34mAuthorizedERC20 deployed to: \x1b[0m",
     "\x1b[34m" + plantERC20Address + "\x1b[0m"
   );
 
@@ -36,7 +36,7 @@ async function main() {
   );
 
   // 设置 PlantERC20 合约中的 PlantMarket 合约地址
-  const res = await plantERC20.authorizeMinter(plantMarketAddress);
+  const res = await plantERC20.authorizeOnce(plantMarketAddress);
   await res.wait()
 
   // 查询授权状态

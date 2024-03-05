@@ -32,6 +32,7 @@ contract PlantMarket is Ownable, ReentrancyGuard {
     struct UserAdoptionRecord {
         uint256[] plantIds;
         mapping(PlantType => uint256) adoptionCount;
+        mapping(PlantType => uint256) lastScheduledDay; // 最后预约日期
     }
 
     struct AdoptionPriceRange {
@@ -91,6 +92,7 @@ contract PlantMarket is Ownable, ReentrancyGuard {
     error NotReachingContractTerm();
     error InvalidPlantType();
     error InsufficientTokens();
+    error OnlyScheduleAdoptionOncePerDay();
 
     constructor(address tokenContractAddress) Ownable(msg.sender) {
         _tokenContract = AuthorizedERC20(tokenContractAddress);
@@ -143,9 +145,18 @@ contract PlantMarket is Ownable, ReentrancyGuard {
     }
 
     /**
-     *  预约
+     * 预约
+     * @param plantType PlantType
      */
     function scheduleAdoption(PlantType plantType) external {
+        uint256 today = (block.timestamp + 8 hours) / 1 days;
+
+        if (
+            userAdoptionRecords[msg.sender].lastScheduledDay[plantType] > today
+        ) {
+            revert OnlyScheduleAdoptionOncePerDay();
+        }
+
         if (
             _tokenContract.mintableBalance() >=
             priceRanges[plantType].rewardAmounts * 10 ** 18
@@ -154,6 +165,8 @@ contract PlantMarket is Ownable, ReentrancyGuard {
                 msg.sender,
                 priceRanges[plantType].rewardAmounts * 10 ** 18
             );
+
+            userAdoptionRecords[msg.sender].lastScheduledDay[plantType] = today;
         }
     }
 
@@ -262,7 +275,7 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         }
 
         if (
-            block.timestamp >=
+            block.timestamp <
             plant.adoptedTimestamp +
                 priceRanges[plant.plantType].profitDays *
                 60
