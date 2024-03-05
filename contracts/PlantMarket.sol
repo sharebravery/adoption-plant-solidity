@@ -4,12 +4,12 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "./PlantERC20.sol";
+import "./AuthorizedERC20.sol";
 
 contract PlantMarket is Ownable, ReentrancyGuard {
     using Address for address payable;
 
-    PlantERC20 private _tokenContract;
+    AuthorizedERC20 private _tokenContract;
 
     enum PlantType {
         Ordinary,
@@ -90,9 +90,10 @@ contract PlantMarket is Ownable, ReentrancyGuard {
     error PlantNotAdopted();
     error NotReachingContractTerm();
     error InvalidPlantType();
+    error InsufficientTokens();
 
     constructor(address tokenContractAddress) Ownable(msg.sender) {
-        _tokenContract = PlantERC20(tokenContractAddress);
+        _tokenContract = AuthorizedERC20(tokenContractAddress);
 
         priceRanges[PlantType.Ordinary] = AdoptionPriceRange(
             0.005 ether,
@@ -141,6 +142,21 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         );
     }
 
+    /**
+     *  预约
+     */
+    function scheduleAdoption(PlantType plantType) external {
+        if (
+            _tokenContract.mintableBalance() >=
+            priceRanges[plantType].rewardAmounts * 10 ** 18
+        ) {
+            _tokenContract.mint(
+                msg.sender,
+                priceRanges[plantType].rewardAmounts * 10 ** 18
+            );
+        }
+    }
+
     function createPlant(PlantDTO memory newPlantDTO, address _owner) public {
         if (plantIdCounter >= type(uint256).max) {
             revert PlantIDOverflow();
@@ -151,17 +167,11 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         Plant memory newPlant = Plant({
             plantId: plantIdCounter,
             valueEth: rangeData.minEth,
-            // minEth: rangeData.minEth,
-            // maxEth: rangeData.maxEth,
-            // startTime: rangeData.startTime,
-            // endTime: rangeData.endTime,
             adoptedTimestamp: 0,
             plantType: newPlantDTO.plantType,
             owner: _owner,
             isAdopted: false,
             isSplit: false
-            // profitDays: rangeData.profitDays,
-            // profitRate: rangeData.profitRate
         });
         plants[plantIdCounter] = newPlant;
         plantIdCounter++;
@@ -172,34 +182,53 @@ contract PlantMarket is Ownable, ReentrancyGuard {
     function adoptPlant(uint256 _plantId) external payable nonReentrant {
         Plant storage plant = plants[_plantId];
 
-        _mintReward(plant.plantType, msg.sender);
-
+        // Ensure the plant is not already adopted or split
         if (plant.isAdopted) {
             revert PlantAlreadyAdopted();
         }
         if (plant.isSplit) {
             revert PlantAlreadySplit();
         }
+
+        // Ensure the adoption price is within the valid range
         if (
             msg.value < priceRanges[plant.plantType].minEth ||
             msg.value > priceRanges[plant.plantType].maxEth
         ) {
             revert InvalidAdoptionPrice();
         }
+
+        // Check if it's the right time for adoption
         if (!_isAdoptionTimeValid(plant.plantType)) {
             revert NotAdoptionTime();
         }
 
+        // Calculate the amount of tokens to burn based on the adoption price
+        uint256 tokenAmountToBurn = (priceRanges[plant.plantType]
+            .rewardAmounts / 100) * 10 ** 18;
+
+        // Ensure the user has enough tokens to adopt
+        if (_tokenContract.balanceOf(msg.sender) < tokenAmountToBurn) {
+            revert InsufficientTokens();
+        }
+
+        // Burn the required tokens from the user's balance
+        _tokenContract.burnFrom(msg.sender, tokenAmountToBurn);
+
+        // Transfer the adoption payment to the plant owner
         (bool success, ) = payable(plant.owner).call{value: msg.value}("");
         if (!success) {
             revert TransferFailed();
         }
 
+        // Update plant adoption status and user records
         plant.owner = msg.sender;
         plant.isAdopted = true;
         plant.adoptedTimestamp = block.timestamp;
         userAdoptionRecords[msg.sender].plantIds.push(_plantId);
         userAdoptionRecords[msg.sender].adoptionCount[plant.plantType]++;
+
+        // Emit event
         emit PlantAdopted(
             _plantId,
             msg.sender,
@@ -216,18 +245,6 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         return
             currentHour >= priceRanges[plantType].startTime &&
             currentHour < priceRanges[plantType].endTime;
-    }
-
-    function _mintReward(PlantType plantType, address recipient) private {
-        if (
-            _tokenContract.mintableBalance() >=
-            priceRanges[plantType].rewardAmounts * 10 ** 18
-        ) {
-            _tokenContract.mintFromMarket(
-                recipient,
-                priceRanges[plantType].rewardAmounts * 10 ** 18
-            );
-        }
     }
 
     function list(uint256 plantId) public {

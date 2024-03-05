@@ -1,6 +1,6 @@
 # Solidity API
 
-## PlantERC20
+## AuthorizedERC20
 
 ### UnauthorizedAccess
 
@@ -17,26 +17,81 @@ error ExceedsSupplyLimit()
 ### constructor
 
 ```solidity
-constructor() public
+constructor(string name_, string symbol_) public
 ```
 
-### mintFromMarket
+### mint
 
 ```solidity
-function mintFromMarket(address account, uint256 amount) external
+function mint(address account, uint256 amount) external
 ```
 
-### setPlantMarketContract
+仅允许授权的地址调用 mint 函数
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| account | address | account |
+| amount | uint256 | amount |
+
+### authorizeMinter
 
 ```solidity
-function setPlantMarketContract(address plantMarketContract) external
+function authorizeMinter(address minter) external
 ```
+
+授权地址调用 mint 函数
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| minter | address | minter |
+
+### revokeMinterAuthorization
+
+```solidity
+function revokeMinterAuthorization(address minter) external
+```
+
+取消授权地址调用 mint 函数
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| minter | address | minter |
 
 ### mintableBalance
 
 ```solidity
 function mintableBalance() external view returns (uint256)
 ```
+
+查询还可以 mint 的余额
+
+### getSupplyLimit
+
+```solidity
+function getSupplyLimit() external pure returns (uint256)
+```
+
+获取合约的供应限制
+
+### isMinterAuthorized
+
+```solidity
+function isMinterAuthorized(address minter) external view returns (bool)
+```
+
+查询地址的授权状态
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| minter | address | minter |
 
 ## PlantMarket
 
@@ -201,11 +256,25 @@ error NotReachingContractTerm()
 error InvalidPlantType()
 ```
 
+### InsufficientTokens
+
+```solidity
+error InsufficientTokens()
+```
+
 ### constructor
 
 ```solidity
 constructor(address tokenContractAddress) public
 ```
+
+### scheduleAdoption
+
+```solidity
+function scheduleAdoption(enum PlantMarket.PlantType plantType) external
+```
+
+预约
 
 ### createPlant
 
@@ -259,6 +328,20 @@ function getPlantInfoById(uint256 _plantId) public view returns (struct PlantMar
 
 ```solidity
 function getMarketListings() external view returns (struct PlantMarket.Plant[])
+```
+
+## PlantERC20
+
+### constructor
+
+```solidity
+constructor() public
+```
+
+### mint
+
+```solidity
+function mint(address account, uint256 amount) public
 ```
 
 ## PlantAdoption

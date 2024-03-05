@@ -6,14 +6,13 @@ async function main() {
 
   const lockedAmount = ethers.parseEther("0.001");
 
-  // 获取部署账户
   const [deployer] = await ethers.getSigners();
 
   console.log("Deploying contact with account:", deployer.address);
 
   // 部署 PlantERC20 合约
-  const PlantERC20 = await ethers.getContractFactory("PlantERC20");
-  const plantERC20 = await PlantERC20.deploy();
+  const PlantERC20 = await ethers.getContractFactory("AuthorizedERC20");
+  const plantERC20 = await PlantERC20.deploy('TREE', "TREE");
   await plantERC20.waitForDeployment();
 
   const plantERC20Address = await plantERC20.getAddress();
@@ -22,6 +21,7 @@ async function main() {
     "\x1b[34mPlantERC20 deployed to: \x1b[0m",
     "\x1b[34m" + plantERC20Address + "\x1b[0m"
   );
+
 
   // 部署 PlantMarket 合约，并传入 PlantERC20 合约地址
   const PlantMarket = await ethers.getContractFactory("PlantMarket");
@@ -36,7 +36,16 @@ async function main() {
   );
 
   // 设置 PlantERC20 合约中的 PlantMarket 合约地址
-  await plantERC20.setPlantMarketContract(plantMarketAddress);
+  const res = await plantERC20.authorizeMinter(plantMarketAddress);
+  await res.wait()
+
+  // 查询授权状态
+  const isAuthorized = await plantERC20.isMinterAuthorized(plantMarketAddress);
+  console.log(
+    "\x1b[34mDeployer authorization status:\x1b[0m",
+    "\x1b[34m" + isAuthorized + "\x1b[0m"
+  );
+
 
   console.log(
     `Lock with ${ethers.formatEther(
