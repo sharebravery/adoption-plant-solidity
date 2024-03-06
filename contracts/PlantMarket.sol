@@ -12,11 +12,12 @@ contract PlantMarket is Ownable, ReentrancyGuard {
     AuthorizedERC20 private _tokenContract;
 
     enum PlantType {
-        Ordinary,
-        SmallTree,
-        MediumTree,
-        HighTree,
-        KingTree
+        Seed,
+        Seedling,
+        Vegetative,
+        Flowering,
+        Fruiting,
+        VegetativeVariation
     }
 
     struct Plant {
@@ -100,7 +101,7 @@ contract PlantMarket is Ownable, ReentrancyGuard {
     constructor(address tokenContractAddress) Ownable(msg.sender) {
         _tokenContract = AuthorizedERC20(tokenContractAddress);
 
-        priceRanges[PlantType.Ordinary] = AdoptionPriceRange(
+        priceRanges[PlantType.Seed] = AdoptionPriceRange(
             0.005 ether,
             0.015 ether,
             7,
@@ -109,7 +110,7 @@ contract PlantMarket is Ownable, ReentrancyGuard {
             2100,
             1000
         );
-        priceRanges[PlantType.SmallTree] = AdoptionPriceRange(
+        priceRanges[PlantType.Seedling] = AdoptionPriceRange(
             0.0151 ether,
             0.045 ether,
             7,
@@ -118,7 +119,7 @@ contract PlantMarket is Ownable, ReentrancyGuard {
             900,
             3000
         );
-        priceRanges[PlantType.MediumTree] = AdoptionPriceRange(
+        priceRanges[PlantType.Vegetative] = AdoptionPriceRange(
             0.0451 ether,
             0.125 ether,
             7,
@@ -127,7 +128,7 @@ contract PlantMarket is Ownable, ReentrancyGuard {
             1250,
             5000
         );
-        priceRanges[PlantType.HighTree] = AdoptionPriceRange(
+        priceRanges[PlantType.Flowering] = AdoptionPriceRange(
             0.1251 ether,
             0.3 ether,
             7,
@@ -136,7 +137,7 @@ contract PlantMarket is Ownable, ReentrancyGuard {
             2100,
             10000
         );
-        priceRanges[PlantType.KingTree] = AdoptionPriceRange(
+        priceRanges[PlantType.Fruiting] = AdoptionPriceRange(
             0.3001 ether,
             0.75 ether,
             7,
@@ -144,6 +145,15 @@ contract PlantMarket is Ownable, ReentrancyGuard {
             20,
             4000,
             20000
+        );
+        priceRanges[PlantType.VegetativeVariation] = AdoptionPriceRange(
+            0.0451 ether,
+            0.125 ether,
+            7,
+            23,
+            1,
+            5,
+            5000
         );
     }
 
@@ -274,8 +284,7 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         if (
             block.timestamp <
             plant.adoptedTimestamp +
-                uint256(priceRanges[plant.plantType].profitDays) *
-                60
+                uint256(priceRanges[plant.plantType].profitDays)
         ) {
             revert NotReachingContractTerm();
             // plant.adoptedTimestamp + plant.profitDays * 1 hours
@@ -299,11 +308,11 @@ contract PlantMarket is Ownable, ReentrancyGuard {
 
     function _splitPlant(Plant storage _plant) private {
         PlantType[] memory types = new PlantType[](5);
-        types[0] = PlantType.Ordinary;
-        types[1] = PlantType.SmallTree;
-        types[2] = PlantType.MediumTree;
-        types[3] = PlantType.HighTree;
-        types[4] = PlantType.KingTree;
+        types[0] = PlantType.Seed;
+        types[1] = PlantType.Seedling;
+        types[2] = PlantType.Vegetative;
+        types[3] = PlantType.Flowering;
+        types[4] = PlantType.Fruiting;
 
         uint256 totalEthFromPreviousPlants = 0;
 
@@ -311,7 +320,6 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         for (uint256 i = 0; i < types.length - 1; i++) {
             totalEthFromPreviousPlants += priceRanges[types[i]].minEth;
 
-            // 创建新的植物实例
             PlantDTO memory newPlant = PlantDTO({
                 plantType: types[i],
                 minEth: priceRanges[types[i]].minEth,
@@ -324,35 +332,40 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         // 剩余的 ETH 是当前植物的 minEth 减去之前所有植物分裂出去的总和
         uint256 remainingEth = _plant.valueEth - totalEthFromPreviousPlants;
 
-        // 创建新的植物实例
         PlantDTO memory lastPlant = PlantDTO({
-            plantType: PlantType.HighTree,
+            plantType: PlantType.Flowering,
             minEth: remainingEth,
-            maxEth: 0.3 ether
+            maxEth: priceRanges[PlantType.Flowering].maxEth
         });
         createPlant(lastPlant, _plant.owner);
     }
 
     function _settlePlant(Plant storage _plant) private {
         if (_plant.valueEth > 0.3001 ether && _plant.valueEth <= 0.75 ether) {
-            _plant.plantType = PlantType.KingTree;
+            _plant.plantType = PlantType.Fruiting;
         } else if (
             _plant.valueEth > 0.1251 ether && _plant.valueEth <= 0.3 ether
         ) {
-            _plant.plantType = PlantType.HighTree;
+            _plant.plantType = PlantType.Flowering;
         } else if (
             _plant.valueEth > 0.0451 ether && _plant.valueEth <= 0.125 ether
         ) {
-            _plant.plantType = PlantType.MediumTree;
+            _plant.plantType = PlantType.Vegetative;
         } else if (
             _plant.valueEth > 0.0151 ether && _plant.valueEth <= 0.045 ether
         ) {
-            _plant.plantType = PlantType.SmallTree;
+            _plant.plantType = PlantType.Seedling;
         } else if (
             _plant.valueEth >= 0.005 ether && _plant.valueEth <= 0.015 ether
         ) {
-            _plant.plantType = PlantType.Ordinary;
+            _plant.plantType = PlantType.Seed;
         }
+    }
+
+    function getPlantInfoById(
+        uint256 _plantId
+    ) public view returns (Plant memory) {
+        return plants[_plantId];
     }
 
     function getUserAdoptionPlantIds(
@@ -365,9 +378,7 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         address _user,
         PlantType _plantType
     ) public view returns (uint256) {
-        if (
-            _plantType < PlantType.Ordinary || _plantType > PlantType.KingTree
-        ) {
+        if (_plantType < PlantType.Seed || _plantType > PlantType.Fruiting) {
             revert InvalidPlantType();
         }
         return userAdoptionRecords[_user].adoptionCount[_plantType];
@@ -402,12 +413,6 @@ contract PlantMarket is Ownable, ReentrancyGuard {
             }
         }
         return userAdoptedPlants;
-    }
-
-    function getPlantInfoById(
-        uint256 _plantId
-    ) public view returns (Plant memory) {
-        return plants[_plantId];
     }
 
     function getMarketListings() external view returns (Plant[] memory) {

@@ -83,11 +83,12 @@ function isMinterAuthorized(address minter) external view returns (bool)
 
 ```solidity
 enum PlantType {
-  Ordinary,
-  SmallTree,
-  MediumTree,
-  HighTree,
-  KingTree
+  Seed,
+  Seedling,
+  Vegetative,
+  Flowering,
+  Fruiting,
+  VegetativeVariation
 }
 ```
 
@@ -308,6 +309,12 @@ function _isAdoptionTimeValid(enum PlantMarket.PlantType plantType) internal vie
 function list(uint256 plantId) public
 ```
 
+### getPlantInfoById
+
+```solidity
+function getPlantInfoById(uint256 _plantId) public view returns (struct PlantMarket.Plant)
+```
+
 ### getUserAdoptionPlantIds
 
 ```solidity
@@ -324,12 +331,6 @@ function getUserAdoptionRecord(address _user, enum PlantMarket.PlantType _plantT
 
 ```solidity
 function getUserAdoptedPlants(address _user, bool includeSplit) external view returns (struct PlantMarket.Plant[])
-```
-
-### getPlantInfoById
-
-```solidity
-function getPlantInfoById(uint256 _plantId) public view returns (struct PlantMarket.Plant)
 ```
 
 ### getMarketListings
