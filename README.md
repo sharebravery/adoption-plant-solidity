@@ -111,7 +111,6 @@ struct Plant {
 struct UserAdoptionRecord {
   uint256[] plantIds;
   mapping(enum PlantMarket.PlantType => uint256) adoptionCount;
-  mapping(enum PlantMarket.PlantType => uint256) lastScheduledDay;
 }
 ```
 
@@ -229,6 +228,12 @@ error NotOwner()
 error PlantNotAdopted()
 ```
 
+### PlantAdoptedError
+
+```solidity
+error PlantAdoptedError()
+```
+
 ### NotReachingContractTerm
 
 ```solidity
@@ -251,6 +256,12 @@ error InsufficientTokens()
 
 ```solidity
 error OnlyScheduleAdoptionOncePerDay()
+```
+
+### MarketNoHavedThePlant
+
+```solidity
+error MarketNoHavedThePlant()
 ```
 
 ### constructor

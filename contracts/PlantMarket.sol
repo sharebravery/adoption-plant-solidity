@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -32,7 +32,6 @@ contract PlantMarket is Ownable, ReentrancyGuard {
     struct UserAdoptionRecord {
         uint256[] plantIds;
         mapping(PlantType => uint256) adoptionCount;
-        mapping(PlantType => uint256) lastScheduledDay; // 最后预约日期
     }
 
     struct AdoptionPriceRange {
@@ -50,6 +49,8 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         uint256 minEth;
         uint256 maxEth;
     }
+
+    mapping(PlantType => uint256[]) private marketHavedTypes;
 
     mapping(uint256 => Plant) public plants;
     mapping(address => UserAdoptionRecord) private userAdoptionRecords;
@@ -89,10 +90,12 @@ contract PlantMarket is Ownable, ReentrancyGuard {
     error InvalidPlantID();
     error NotOwner();
     error PlantNotAdopted();
+    error PlantAdoptedError();
     error NotReachingContractTerm();
     error InvalidPlantType();
     error InsufficientTokens();
     error OnlyScheduleAdoptionOncePerDay();
+    error MarketNoHavedThePlant();
 
     constructor(address tokenContractAddress) Ownable(msg.sender) {
         _tokenContract = AuthorizedERC20(tokenContractAddress);
@@ -103,7 +106,7 @@ contract PlantMarket is Ownable, ReentrancyGuard {
             7,
             23,
             7,
-            21,
+            2100,
             1000
         );
         priceRanges[PlantType.SmallTree] = AdoptionPriceRange(
@@ -112,7 +115,7 @@ contract PlantMarket is Ownable, ReentrancyGuard {
             7,
             23,
             3,
-            9,
+            900,
             3000
         );
         priceRanges[PlantType.MediumTree] = AdoptionPriceRange(
@@ -121,7 +124,7 @@ contract PlantMarket is Ownable, ReentrancyGuard {
             7,
             23,
             5,
-            13,
+            1250,
             5000
         );
         priceRanges[PlantType.HighTree] = AdoptionPriceRange(
@@ -130,7 +133,7 @@ contract PlantMarket is Ownable, ReentrancyGuard {
             7,
             23,
             12,
-            21,
+            2100,
             10000
         );
         priceRanges[PlantType.KingTree] = AdoptionPriceRange(
@@ -139,7 +142,7 @@ contract PlantMarket is Ownable, ReentrancyGuard {
             7,
             23,
             20,
-            40,
+            4000,
             20000
         );
     }
@@ -149,12 +152,8 @@ contract PlantMarket is Ownable, ReentrancyGuard {
      * @param plantType PlantType
      */
     function scheduleAdoption(PlantType plantType) external {
-        uint256 today = (block.timestamp + 8 hours) / 1 days;
-
-        if (
-            userAdoptionRecords[msg.sender].lastScheduledDay[plantType] > today
-        ) {
-            revert OnlyScheduleAdoptionOncePerDay();
+        if (marketHavedTypes[plantType].length == 0) {
+            revert MarketNoHavedThePlant();
         }
 
         if (
@@ -165,15 +164,10 @@ contract PlantMarket is Ownable, ReentrancyGuard {
                 msg.sender,
                 priceRanges[plantType].rewardAmounts * 10 ** 18
             );
-
-            userAdoptionRecords[msg.sender].lastScheduledDay[plantType] = today;
         }
     }
 
     function createPlant(PlantDTO memory newPlantDTO, address _owner) public {
-        if (plantIdCounter >= type(uint256).max) {
-            revert PlantIDOverflow();
-        }
         AdoptionPriceRange memory rangeData = priceRanges[
             newPlantDTO.plantType
         ];
@@ -187,6 +181,7 @@ contract PlantMarket is Ownable, ReentrancyGuard {
             isSplit: false
         });
         plants[plantIdCounter] = newPlant;
+        marketHavedTypes[newPlantDTO.plantType].push(plantIdCounter);
         plantIdCounter++;
 
         emit PlantCreated(plantIdCounter, address(this), rangeData.minEth);
@@ -217,8 +212,9 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         }
 
         // Calculate the amount of tokens to burn based on the adoption price
-        uint256 tokenAmountToBurn = (priceRanges[plant.plantType]
-            .rewardAmounts / 100) * 10 ** 18;
+        uint256 tokenAmountToBurn = (
+            priceRanges[plant.plantType].rewardAmounts
+        ) * 10 ** 18;
 
         // Ensure the user has enough tokens to adopt
         if (_tokenContract.balanceOf(msg.sender) < tokenAmountToBurn) {
@@ -237,6 +233,7 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         // Update plant adoption status and user records
         plant.owner = msg.sender;
         plant.isAdopted = true;
+        marketHavedTypes[plant.plantType].pop();
         plant.adoptedTimestamp = block.timestamp;
         userAdoptionRecords[msg.sender].plantIds.push(_plantId);
         userAdoptionRecords[msg.sender].adoptionCount[plant.plantType]++;
@@ -277,7 +274,7 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         if (
             block.timestamp <
             plant.adoptedTimestamp +
-                priceRanges[plant.plantType].profitDays *
+                uint256(priceRanges[plant.plantType].profitDays) *
                 60
         ) {
             revert NotReachingContractTerm();
@@ -287,13 +284,15 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         plant.valueEth =
             plant.valueEth +
             (plant.valueEth * priceRanges[plant.plantType].profitRate) /
-            100;
+            10000;
+
         if (plant.valueEth > 0.75 ether) {
             _splitPlant(plant);
             plant.isSplit = true;
         } else {
             _settlePlant(plant);
             plant.isAdopted = false;
+            marketHavedTypes[plant.plantType].push(plant.plantId);
         }
         emit PlantListed(plantId, msg.sender, plant.valueEth);
     }
@@ -379,8 +378,6 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         bool includeSplit
     ) external view returns (Plant[] memory) {
         uint256 userAdoptedCount = 0;
-        Plant[] memory userAdoptedPlants = new Plant[](plantIdCounter);
-
         for (uint256 i = 0; i < plantIdCounter; i++) {
             Plant storage plant = plants[i];
             if (
@@ -388,16 +385,23 @@ contract PlantMarket is Ownable, ReentrancyGuard {
                 plant.isAdopted &&
                 (includeSplit || plant.isSplit)
             ) {
-                userAdoptedPlants[userAdoptedCount] = plant;
                 userAdoptedCount++;
             }
         }
-        // 返回修剪后的数组
-        Plant[] memory trimmedListings = new Plant[](userAdoptedCount);
-        for (uint256 j = 0; j < userAdoptedCount; j++) {
-            trimmedListings[j] = userAdoptedPlants[j];
+        Plant[] memory userAdoptedPlants = new Plant[](userAdoptedCount);
+        uint256 index = 0;
+        for (uint256 j = 0; j < plantIdCounter; j++) {
+            Plant storage plant = plants[j];
+            if (
+                plant.owner == _user &&
+                plant.isAdopted &&
+                (includeSplit || plant.isSplit)
+            ) {
+                userAdoptedPlants[index] = plant;
+                index++;
+            }
         }
-        return trimmedListings;
+        return userAdoptedPlants;
     }
 
     function getPlantInfoById(
@@ -407,19 +411,22 @@ contract PlantMarket is Ownable, ReentrancyGuard {
     }
 
     function getMarketListings() external view returns (Plant[] memory) {
-        Plant[] memory marketListings = new Plant[](plantIdCounter);
-        uint256 count = 0;
+        uint256 marketCount = 0;
         for (uint256 i = 0; i < plantIdCounter; i++) {
             Plant storage plant = plants[i];
             if (!plant.isAdopted) {
-                marketListings[count] = plant;
-                count++;
+                marketCount++;
             }
         }
-        Plant[] memory trimmedListings = new Plant[](count);
-        for (uint256 j = 0; j < count; j++) {
-            trimmedListings[j] = marketListings[j];
+        Plant[] memory marketListings = new Plant[](marketCount);
+        uint256 index = 0;
+        for (uint256 j = 0; j < plantIdCounter; j++) {
+            Plant storage plant = plants[j];
+            if (!plant.isAdopted) {
+                marketListings[index] = plant;
+                index++;
+            }
         }
-        return trimmedListings;
+        return marketListings;
     }
 }
