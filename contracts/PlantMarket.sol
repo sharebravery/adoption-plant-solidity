@@ -302,12 +302,13 @@ contract PlantMarket is Ownable, ReentrancyGuard {
     }
 
     function _splitPlant(Plant storage _plant) private {
-        PlantType[] memory types = new PlantType[](5);
+        PlantType[] memory types = new PlantType[](6);
         types[0] = PlantType.Seed;
         types[1] = PlantType.Seedling;
-        types[2] = PlantType.Vegetative;
-        types[3] = PlantType.Flowering;
-        types[4] = PlantType.Fruiting;
+        types[2] = PlantType.VegetativeVariation;
+        types[3] = PlantType.Vegetative;
+        types[4] = PlantType.Flowering;
+        types[5] = PlantType.Fruiting;
 
         uint256 totalEthFromPreviousPlants = 0;
 
