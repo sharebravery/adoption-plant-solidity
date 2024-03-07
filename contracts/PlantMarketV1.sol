@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./AuthorizedERC20.sol";
 
-contract PlantMarket is Ownable, ReentrancyGuard {
+contract PlantMarketV1 is Ownable, ReentrancyGuard {
     using Address for address payable;
 
     AuthorizedERC20 private _tokenContract;
@@ -120,6 +120,15 @@ contract PlantMarket is Ownable, ReentrancyGuard {
             900,
             3000
         );
+        priceRanges[PlantType.VegetativeVariation] = AdoptionPriceRange(
+            0.0451 ether,
+            0.125 ether,
+            7,
+            23,
+            1,
+            500,
+            5000
+        );
         priceRanges[PlantType.Vegetative] = AdoptionPriceRange(
             0.0451 ether,
             0.125 ether,
@@ -146,15 +155,6 @@ contract PlantMarket is Ownable, ReentrancyGuard {
             20,
             4000,
             20000
-        );
-        priceRanges[PlantType.VegetativeVariation] = AdoptionPriceRange(
-            0.0451 ether,
-            0.125 ether,
-            7,
-            23,
-            1,
-            5,
-            5000
         );
     }
 
@@ -313,7 +313,7 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         uint256 totalEthFromPreviousPlants = 0;
 
         // 计算之前所有植物分裂出去的总和
-        for (uint256 i = 0; i < types.length - 1; i++) {
+        for (uint256 i = 0; i < types.length; i++) {
             totalEthFromPreviousPlants += priceRanges[types[i]].minEth;
 
             PlantDTO memory newPlant = PlantDTO({
@@ -325,15 +325,36 @@ contract PlantMarket is Ownable, ReentrancyGuard {
             createPlant(newPlant, _plant.owner);
         }
 
+        PlantDTO memory vPlant1 = PlantDTO({
+            plantType: PlantType.VegetativeVariation,
+            minEth: priceRanges[PlantType.Flowering].minEth,
+            maxEth: priceRanges[PlantType.Flowering].maxEth
+        });
+
+        PlantDTO memory vPlant2 = PlantDTO({
+            plantType: PlantType.VegetativeVariation,
+            minEth: priceRanges[PlantType.Flowering].minEth,
+            maxEth: priceRanges[PlantType.Flowering].maxEth
+        });
+
         // 剩余的 ETH 是当前植物的 minEth 减去之前所有植物分裂出去的总和
-        uint256 remainingEth = _plant.valueEth - totalEthFromPreviousPlants;
+        uint256 remainingEth = _plant.valueEth -
+            totalEthFromPreviousPlants -
+            priceRanges[PlantType.VegetativeVariation].minEth *
+            2;
+
+        createPlant(vPlant1, _plant.owner);
+        createPlant(vPlant2, _plant.owner);
 
         PlantDTO memory lastPlant = PlantDTO({
             plantType: PlantType.Flowering,
             minEth: remainingEth,
             maxEth: priceRanges[PlantType.Flowering].maxEth
         });
+
         createPlant(lastPlant, _plant.owner);
+        _settlePlant(plants[plantIdCounter - 1]);
+        plants[plantIdCounter - 1].valueEth = remainingEth;
     }
 
     function _settlePlant(Plant storage _plant) private {
@@ -346,7 +367,9 @@ contract PlantMarket is Ownable, ReentrancyGuard {
         } else if (
             _plant.valueEth > 0.0451 ether && _plant.valueEth <= 0.125 ether
         ) {
-            _plant.plantType = PlantType.Vegetative;
+            if (_plant.plantType != PlantType.VegetativeVariation) {
+                _plant.plantType = PlantType.Vegetative;
+            }
         } else if (
             _plant.valueEth > 0.0151 ether && _plant.valueEth <= 0.045 ether
         ) {
@@ -390,7 +413,7 @@ contract PlantMarket is Ownable, ReentrancyGuard {
             if (
                 plant.owner == _user &&
                 plant.isAdopted &&
-                (includeSplit || plant.isSplit)
+                (includeSplit ? plant.isSplit : !plant.isSplit) // 根据 includeSplit 参数筛选已分裂或未分裂的数据
             ) {
                 userAdoptedCount++;
             }
@@ -402,7 +425,7 @@ contract PlantMarket is Ownable, ReentrancyGuard {
             if (
                 plant.owner == _user &&
                 plant.isAdopted &&
-                (includeSplit || plant.isSplit)
+                (includeSplit ? plant.isSplit : !plant.isSplit) // 根据 includeSplit 参数筛选已分裂或未分裂的数据
             ) {
                 userAdoptedPlants[index] = plant;
                 index++;

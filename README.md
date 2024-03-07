@@ -77,7 +77,7 @@ function isMinterAuthorized(address minter) external view returns (bool)
 | ---- | ---- | ----------- |
 | minter | address | minter |
 
-## PlantMarket
+## PlantMarketV1
 
 ### PlantType
 
@@ -89,6 +89,261 @@ enum PlantType {
   Vegetative,
   Flowering,
   Fruiting
+}
+```
+
+### Plant
+
+```solidity
+struct Plant {
+  uint256 plantId;
+  enum PlantMarketV1.PlantType plantType;
+  uint256 valueEth;
+  uint256 adoptedTimestamp;
+  address owner;
+  bool isAdopted;
+  bool isSplit;
+}
+```
+
+### UserAdoptionRecord
+
+```solidity
+struct UserAdoptionRecord {
+  uint256[] plantIds;
+  mapping(enum PlantMarketV1.PlantType => uint256) adoptionCount;
+}
+```
+
+### AdoptionPriceRange
+
+```solidity
+struct AdoptionPriceRange {
+  uint256 minEth;
+  uint256 maxEth;
+  uint8 startTime;
+  uint8 endTime;
+  uint8 profitDays;
+  uint16 profitRate;
+  uint256 rewardAmounts;
+}
+```
+
+### PlantDTO
+
+```solidity
+struct PlantDTO {
+  enum PlantMarketV1.PlantType plantType;
+  uint256 minEth;
+  uint256 maxEth;
+}
+```
+
+### plants
+
+```solidity
+mapping(uint256 => struct PlantMarketV1.Plant) plants
+```
+
+### priceRanges
+
+```solidity
+mapping(enum PlantMarketV1.PlantType => struct PlantMarketV1.AdoptionPriceRange) priceRanges
+```
+
+### PlantAdopted
+
+```solidity
+event PlantAdopted(uint256 plantId, address owner, enum PlantMarketV1.PlantType plantType, uint256 adoptionTime)
+```
+
+### PlantCreated
+
+```solidity
+event PlantCreated(uint256 plantId, address seller, uint256 price)
+```
+
+### PlantListed
+
+```solidity
+event PlantListed(uint256 plantId, address seller, uint256 price)
+```
+
+### PlantSold
+
+```solidity
+event PlantSold(uint256 plantId, address buyer, address seller, uint256 price)
+```
+
+### PlantIDOverflow
+
+```solidity
+error PlantIDOverflow()
+```
+
+### TransferFailed
+
+```solidity
+error TransferFailed()
+```
+
+### PlantAlreadyAdopted
+
+```solidity
+error PlantAlreadyAdopted()
+```
+
+### PlantAlreadySplit
+
+```solidity
+error PlantAlreadySplit()
+```
+
+### InvalidAdoptionPrice
+
+```solidity
+error InvalidAdoptionPrice()
+```
+
+### NotAdoptionTime
+
+```solidity
+error NotAdoptionTime()
+```
+
+### InvalidPlantID
+
+```solidity
+error InvalidPlantID()
+```
+
+### NotOwner
+
+```solidity
+error NotOwner()
+```
+
+### PlantNotAdopted
+
+```solidity
+error PlantNotAdopted()
+```
+
+### PlantAdoptedError
+
+```solidity
+error PlantAdoptedError()
+```
+
+### NotReachingContractTerm
+
+```solidity
+error NotReachingContractTerm()
+```
+
+### InvalidPlantType
+
+```solidity
+error InvalidPlantType()
+```
+
+### InsufficientTokens
+
+```solidity
+error InsufficientTokens()
+```
+
+### OnlyScheduleAdoptionOncePerDay
+
+```solidity
+error OnlyScheduleAdoptionOncePerDay()
+```
+
+### constructor
+
+```solidity
+constructor(address tokenContractAddress) public
+```
+
+### scheduleAdoption
+
+```solidity
+function scheduleAdoption(enum PlantMarketV1.PlantType plantType) external
+```
+
+预约
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| plantType | enum PlantMarketV1.PlantType | PlantType |
+
+### createPlant
+
+```solidity
+function createPlant(struct PlantMarketV1.PlantDTO newPlantDTO, address _owner) public
+```
+
+### adoptPlant
+
+```solidity
+function adoptPlant(uint256 _plantId) external payable
+```
+
+### _isAdoptionTimeValid
+
+```solidity
+function _isAdoptionTimeValid(enum PlantMarketV1.PlantType plantType) internal view returns (bool)
+```
+
+### list
+
+```solidity
+function list(uint256 plantId) public
+```
+
+### getPlantInfoById
+
+```solidity
+function getPlantInfoById(uint256 _plantId) public view returns (struct PlantMarketV1.Plant)
+```
+
+### getUserAdoptionPlantIds
+
+```solidity
+function getUserAdoptionPlantIds(address _user) public view returns (uint256[])
+```
+
+### getUserAdoptionRecord
+
+```solidity
+function getUserAdoptionRecord(address _user, enum PlantMarketV1.PlantType _plantType) public view returns (uint256)
+```
+
+### getUserAdoptedPlants
+
+```solidity
+function getUserAdoptedPlants(address _user, bool includeSplit) external view returns (struct PlantMarketV1.Plant[])
+```
+
+### getMarketListings
+
+```solidity
+function getMarketListings() external view returns (struct PlantMarketV1.Plant[])
+```
+
+## PlantMarket
+
+### PlantType
+
+```solidity
+enum PlantType {
+  Ordinary,
+  SmallTree,
+  MediumTree,
+  HighTree,
+  KingTree
 }
 ```
 
@@ -229,12 +484,6 @@ error NotOwner()
 error PlantNotAdopted()
 ```
 
-### PlantAdoptedError
-
-```solidity
-error PlantAdoptedError()
-```
-
 ### NotReachingContractTerm
 
 ```solidity
@@ -303,12 +552,6 @@ function _isAdoptionTimeValid(enum PlantMarket.PlantType plantType) internal vie
 function list(uint256 plantId) public
 ```
 
-### getPlantInfoById
-
-```solidity
-function getPlantInfoById(uint256 _plantId) public view returns (struct PlantMarket.Plant)
-```
-
 ### getUserAdoptionPlantIds
 
 ```solidity
@@ -325,6 +568,12 @@ function getUserAdoptionRecord(address _user, enum PlantMarket.PlantType _plantT
 
 ```solidity
 function getUserAdoptedPlants(address _user, bool includeSplit) external view returns (struct PlantMarket.Plant[])
+```
+
+### getPlantInfoById
+
+```solidity
+function getPlantInfoById(uint256 _plantId) public view returns (struct PlantMarket.Plant)
 ```
 
 ### getMarketListings

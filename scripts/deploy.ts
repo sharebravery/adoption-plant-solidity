@@ -23,9 +23,9 @@ async function main() {
   );
 
 
-  // 部署 PlantMarket 合约，并传入 PlantERC20 合约地址
-  const PlantMarket = await ethers.getContractFactory("PlantMarket");
-  const plantMarket = await PlantMarket.deploy(plantERC20Address);
+  // 部署 PlantMarketV1 合约，并传入 PlantERC20 合约地址
+  const PlantMarketV1 = await ethers.getContractFactory("PlantMarketV1");
+  const plantMarket = await PlantMarketV1.deploy(plantERC20Address);
   await plantMarket.waitForDeployment();
 
   const plantMarketAddress = await plantMarket.getAddress();
@@ -35,7 +35,7 @@ async function main() {
     "\x1b[34m" + plantMarketAddress + "\x1b[0m"
   );
 
-  // 设置 PlantERC20 合约中的 PlantMarket 合约地址
+  // 设置 PlantERC20 合约中的 PlantMarketV1 合约地址
   const res = await plantERC20.authorizeOnce(plantMarketAddress);
   await res.wait()
 
