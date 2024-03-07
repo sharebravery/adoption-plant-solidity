@@ -14,10 +14,10 @@ contract PlantMarket is Ownable, ReentrancyGuard {
     enum PlantType {
         Seed,
         Seedling,
+        VegetativeVariation,
         Vegetative,
         Flowering,
-        Fruiting,
-        VegetativeVariation
+        Fruiting
     }
 
     struct Plant {
@@ -96,7 +96,8 @@ contract PlantMarket is Ownable, ReentrancyGuard {
     error InvalidPlantType();
     error InsufficientTokens();
     error OnlyScheduleAdoptionOncePerDay();
-    error MarketNoHavedThePlant();
+
+    // error MarketNoHavedThePlant();
 
     constructor(address tokenContractAddress) Ownable(msg.sender) {
         _tokenContract = AuthorizedERC20(tokenContractAddress);
@@ -162,18 +163,12 @@ contract PlantMarket is Ownable, ReentrancyGuard {
      * @param plantType PlantType
      */
     function scheduleAdoption(PlantType plantType) external {
-        if (marketHavedTypes[plantType].length == 0) {
-            revert MarketNoHavedThePlant();
-        }
+        uint256 amount = marketHavedTypes[plantType].length == 0
+            ? 1000
+            : priceRanges[plantType].rewardAmounts;
 
-        if (
-            _tokenContract.mintableBalance() >=
-            priceRanges[plantType].rewardAmounts * 10 ** 18
-        ) {
-            _tokenContract.mint(
-                msg.sender,
-                priceRanges[plantType].rewardAmounts * 10 ** 18
-            );
+        if (_tokenContract.mintableBalance() >= amount * 10 ** 18) {
+            _tokenContract.mint(msg.sender, amount * 10 ** 18);
         }
     }
 

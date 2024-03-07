@@ -85,10 +85,10 @@ function isMinterAuthorized(address minter) external view returns (bool)
 enum PlantType {
   Seed,
   Seedling,
+  VegetativeVariation,
   Vegetative,
   Flowering,
-  Fruiting,
-  VegetativeVariation
+  Fruiting
 }
 ```
 
@@ -257,12 +257,6 @@ error InsufficientTokens()
 
 ```solidity
 error OnlyScheduleAdoptionOncePerDay()
-```
-
-### MarketNoHavedThePlant
-
-```solidity
-error MarketNoHavedThePlant()
 ```
 
 ### constructor
