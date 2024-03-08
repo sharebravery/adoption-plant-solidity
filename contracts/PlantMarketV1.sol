@@ -30,11 +30,6 @@ contract PlantMarketV1 is Ownable, ReentrancyGuard {
         bool isSplit;
     }
 
-    struct UserAdoptionRecord {
-        uint256[] plantIds;
-        mapping(PlantType => uint256) adoptionCount;
-    }
-
     struct AdoptionPriceRange {
         uint256 minEth;
         uint256 maxEth;
@@ -51,11 +46,11 @@ contract PlantMarketV1 is Ownable, ReentrancyGuard {
         uint256 maxEth;
     }
 
-    mapping(PlantType => uint256[]) private marketHavedTypes;
+    mapping(PlantType => uint256[]) private typeHavePlantIdsInMarket; // 用来标识市场是否有某类型的植物 不作他用
 
     mapping(uint256 => Plant) public plants;
-    mapping(address => UserAdoptionRecord) private userAdoptionRecords;
-    uint256 private plantIdCounter;
+    mapping(address => uint256[]) private userAdoptionPlantIds;
+    uint256 private plantIdCounter = 1;
 
     mapping(PlantType => AdoptionPriceRange) public priceRanges;
 
@@ -163,7 +158,7 @@ contract PlantMarketV1 is Ownable, ReentrancyGuard {
      * @param plantType PlantType
      */
     function scheduleAdoption(PlantType plantType) external {
-        uint256 amount = marketHavedTypes[plantType].length == 0
+        uint256 amount = typeHavePlantIdsInMarket[plantType].length == 0
             ? 1000
             : priceRanges[plantType].rewardAmounts;
 
@@ -186,7 +181,7 @@ contract PlantMarketV1 is Ownable, ReentrancyGuard {
             isSplit: false
         });
         plants[plantIdCounter] = newPlant;
-        marketHavedTypes[newPlantDTO.plantType].push(plantIdCounter);
+        typeHavePlantIdsInMarket[newPlantDTO.plantType].push(plantIdCounter);
         plantIdCounter++;
 
         emit PlantCreated(plantIdCounter, address(this), rangeData.minEth);
@@ -238,10 +233,10 @@ contract PlantMarketV1 is Ownable, ReentrancyGuard {
         // Update plant adoption status and user records
         plant.owner = msg.sender;
         plant.isAdopted = true;
-        marketHavedTypes[plant.plantType].pop();
+        typeHavePlantIdsInMarket[plant.plantType].pop();
         plant.adoptedTimestamp = block.timestamp;
-        userAdoptionRecords[msg.sender].plantIds.push(_plantId);
-        userAdoptionRecords[msg.sender].adoptionCount[plant.plantType]++;
+
+        userAdoptionPlantIds[msg.sender].push(_plantId);
 
         // Emit event
         emit PlantAdopted(
@@ -296,7 +291,7 @@ contract PlantMarketV1 is Ownable, ReentrancyGuard {
         } else {
             _settlePlant(plant);
             plant.isAdopted = false;
-            marketHavedTypes[plant.plantType].push(plant.plantId);
+            typeHavePlantIdsInMarket[plant.plantType].push(plant.plantId);
         }
         emit PlantListed(plantId, msg.sender, plant.valueEth);
     }
@@ -381,34 +376,60 @@ contract PlantMarketV1 is Ownable, ReentrancyGuard {
         }
     }
 
+    function getLastPlantId() external view returns (uint256) {
+        return plantIdCounter;
+    }
+
     function getPlantInfoById(
         uint256 _plantId
-    ) public view returns (Plant memory) {
-        return plants[_plantId];
+    )
+        public
+        view
+        returns (
+            uint256 plantId,
+            PlantType plantType,
+            uint256 valueEth,
+            uint256 adoptedTimestamp,
+            address owner,
+            bool isAdopted,
+            bool isSplit
+        )
+    {
+        require(_plantId < plantIdCounter, "Invalid plant ID");
+
+        Plant memory plant = plants[_plantId];
+        return (
+            plant.plantId,
+            plant.plantType,
+            plant.valueEth,
+            plant.adoptedTimestamp,
+            plant.owner,
+            plant.isAdopted,
+            plant.isSplit
+        );
     }
 
-    function getUserAdoptionPlantIds(
+    /**
+     * 获取用户曾经拥有的植物ID
+     * @param _user 拥有者
+     */
+    function getUserAdoptionRecordPlantIds(
         address _user
     ) public view returns (uint256[] memory) {
-        return userAdoptionRecords[_user].plantIds;
+        return userAdoptionPlantIds[_user];
     }
 
-    function getUserAdoptionRecord(
-        address _user,
-        PlantType _plantType
-    ) public view returns (uint256) {
-        if (_plantType < PlantType.Seed || _plantType > PlantType.Fruiting) {
-            revert InvalidPlantType();
-        }
-        return userAdoptionRecords[_user].adoptionCount[_plantType];
-    }
-
-    function getUserAdoptedPlants(
+    /**
+     * 获取用户当前领养的植物
+     * @param _user owner
+     * @param includeSplit 是否分裂
+     */
+    function getUserAdoptedCurrentPlants(
         address _user,
         bool includeSplit
     ) external view returns (Plant[] memory) {
         uint256 userAdoptedCount = 0;
-        for (uint256 i = 0; i < plantIdCounter; i++) {
+        for (uint256 i = 0; i < plantIdCounter - 1; i++) {
             Plant storage plant = plants[i];
             if (
                 plant.owner == _user &&
@@ -420,7 +441,7 @@ contract PlantMarketV1 is Ownable, ReentrancyGuard {
         }
         Plant[] memory userAdoptedPlants = new Plant[](userAdoptedCount);
         uint256 index = 0;
-        for (uint256 j = 0; j < plantIdCounter; j++) {
+        for (uint256 j = 0; j < plantIdCounter - 1; j++) {
             Plant storage plant = plants[j];
             if (
                 plant.owner == _user &&
@@ -436,7 +457,7 @@ contract PlantMarketV1 is Ownable, ReentrancyGuard {
 
     function getMarketListings() external view returns (Plant[] memory) {
         uint256 marketCount = 0;
-        for (uint256 i = 0; i < plantIdCounter; i++) {
+        for (uint256 i = 0; i < plantIdCounter - 1; i++) {
             Plant storage plant = plants[i];
             if (!plant.isAdopted) {
                 marketCount++;
@@ -444,7 +465,7 @@ contract PlantMarketV1 is Ownable, ReentrancyGuard {
         }
         Plant[] memory marketListings = new Plant[](marketCount);
         uint256 index = 0;
-        for (uint256 j = 0; j < plantIdCounter; j++) {
+        for (uint256 j = 0; j < plantIdCounter - 1; j++) {
             Plant storage plant = plants[j];
             if (!plant.isAdopted) {
                 marketListings[index] = plant;

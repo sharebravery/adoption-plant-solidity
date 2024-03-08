@@ -106,15 +106,6 @@ struct Plant {
 }
 ```
 
-### UserAdoptionRecord
-
-```solidity
-struct UserAdoptionRecord {
-  uint256[] plantIds;
-  mapping(enum PlantMarketV1.PlantType => uint256) adoptionCount;
-}
-```
-
 ### AdoptionPriceRange
 
 ```solidity
@@ -303,29 +294,46 @@ function _isAdoptionTimeValid(enum PlantMarketV1.PlantType plantType) internal v
 function list(uint256 plantId) public
 ```
 
+### getLastPlantId
+
+```solidity
+function getLastPlantId() external view returns (uint256)
+```
+
 ### getPlantInfoById
 
 ```solidity
-function getPlantInfoById(uint256 _plantId) public view returns (struct PlantMarketV1.Plant)
+function getPlantInfoById(uint256 _plantId) public view returns (uint256 plantId, enum PlantMarketV1.PlantType plantType, uint256 valueEth, uint256 adoptedTimestamp, address owner, bool isAdopted, bool isSplit)
 ```
 
-### getUserAdoptionPlantIds
+### getUserAdoptionRecordPlantIds
 
 ```solidity
-function getUserAdoptionPlantIds(address _user) public view returns (uint256[])
+function getUserAdoptionRecordPlantIds(address _user) public view returns (uint256[])
 ```
 
-### getUserAdoptionRecord
+获取用户曾经拥有的植物ID
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _user | address | 拥有者 |
+
+### getUserAdoptedCurrentPlants
 
 ```solidity
-function getUserAdoptionRecord(address _user, enum PlantMarketV1.PlantType _plantType) public view returns (uint256)
+function getUserAdoptedCurrentPlants(address _user, bool includeSplit) external view returns (struct PlantMarketV1.Plant[])
 ```
 
-### getUserAdoptedPlants
+获取用户当前领养的植物
 
-```solidity
-function getUserAdoptedPlants(address _user, bool includeSplit) external view returns (struct PlantMarketV1.Plant[])
-```
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _user | address | owner |
+| includeSplit | bool | 是否分裂 |
 
 ### getMarketListings
 
