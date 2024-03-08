@@ -50,7 +50,7 @@ contract PlantMarketV1 is Ownable, ReentrancyGuard {
 
     mapping(uint256 => Plant) public plants;
     mapping(address => uint256[]) private userAdoptionPlantIds;
-    uint256 private plantIdCounter = 1;
+    uint256 private plantIdCounter;
 
     mapping(PlantType => AdoptionPriceRange) public priceRanges;
 
@@ -100,8 +100,8 @@ contract PlantMarketV1 is Ownable, ReentrancyGuard {
         priceRanges[PlantType.Seed] = AdoptionPriceRange(
             0.005 ether,
             0.015 ether,
-            7,
-            23,
+            14,
+            15,
             7,
             2100,
             1000
@@ -109,8 +109,8 @@ contract PlantMarketV1 is Ownable, ReentrancyGuard {
         priceRanges[PlantType.Seedling] = AdoptionPriceRange(
             0.0151 ether,
             0.045 ether,
-            7,
-            23,
+            15,
+            16,
             3,
             900,
             3000
@@ -118,8 +118,8 @@ contract PlantMarketV1 is Ownable, ReentrancyGuard {
         priceRanges[PlantType.VegetativeVariation] = AdoptionPriceRange(
             0.0451 ether,
             0.125 ether,
-            7,
-            23,
+            20,
+            21,
             1,
             500,
             5000
@@ -127,8 +127,8 @@ contract PlantMarketV1 is Ownable, ReentrancyGuard {
         priceRanges[PlantType.Vegetative] = AdoptionPriceRange(
             0.0451 ether,
             0.125 ether,
-            7,
-            23,
+            16,
+            17,
             5,
             1250,
             5000
@@ -136,17 +136,17 @@ contract PlantMarketV1 is Ownable, ReentrancyGuard {
         priceRanges[PlantType.Flowering] = AdoptionPriceRange(
             0.1251 ether,
             0.3 ether,
-            7,
-            23,
-            12,
+            18,
+            17,
+            18,
             2100,
             10000
         );
         priceRanges[PlantType.Fruiting] = AdoptionPriceRange(
             0.3001 ether,
             0.75 ether,
-            7,
-            23,
+            18,
+            19,
             20,
             4000,
             20000
@@ -167,7 +167,10 @@ contract PlantMarketV1 is Ownable, ReentrancyGuard {
         }
     }
 
-    function createPlant(PlantDTO memory newPlantDTO, address _owner) public {
+    function createPlant(
+        PlantDTO memory newPlantDTO,
+        address _owner
+    ) public onlyOwner {
         AdoptionPriceRange memory rangeData = priceRanges[
             newPlantDTO.plantType
         ];
@@ -429,7 +432,7 @@ contract PlantMarketV1 is Ownable, ReentrancyGuard {
         bool includeSplit
     ) external view returns (Plant[] memory) {
         uint256 userAdoptedCount = 0;
-        for (uint256 i = 0; i < plantIdCounter - 1; i++) {
+        for (uint256 i = 0; i < plantIdCounter; i++) {
             Plant storage plant = plants[i];
             if (
                 plant.owner == _user &&
@@ -441,7 +444,7 @@ contract PlantMarketV1 is Ownable, ReentrancyGuard {
         }
         Plant[] memory userAdoptedPlants = new Plant[](userAdoptedCount);
         uint256 index = 0;
-        for (uint256 j = 0; j < plantIdCounter - 1; j++) {
+        for (uint256 j = 0; j < plantIdCounter; j++) {
             Plant storage plant = plants[j];
             if (
                 plant.owner == _user &&
@@ -457,7 +460,7 @@ contract PlantMarketV1 is Ownable, ReentrancyGuard {
 
     function getMarketListings() external view returns (Plant[] memory) {
         uint256 marketCount = 0;
-        for (uint256 i = 0; i < plantIdCounter - 1; i++) {
+        for (uint256 i = 0; i < plantIdCounter; i++) {
             Plant storage plant = plants[i];
             if (!plant.isAdopted) {
                 marketCount++;
@@ -465,7 +468,7 @@ contract PlantMarketV1 is Ownable, ReentrancyGuard {
         }
         Plant[] memory marketListings = new Plant[](marketCount);
         uint256 index = 0;
-        for (uint256 j = 0; j < plantIdCounter - 1; j++) {
+        for (uint256 j = 0; j < plantIdCounter; j++) {
             Plant storage plant = plants[j];
             if (!plant.isAdopted) {
                 marketListings[index] = plant;
