@@ -277,7 +277,7 @@ contract PlantMarketV1 is Ownable, ReentrancyGuard {
         if (
             block.timestamp <
             plant.adoptedTimestamp +
-                uint256(priceRanges[plant.plantType].profitDays)
+                uint256(priceRanges[plant.plantType].profitDays * 1 days)
         ) {
             revert NotReachingContractTerm();
             // plant.adoptedTimestamp + plant.profitDays * 1 hours
