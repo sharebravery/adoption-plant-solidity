@@ -25,7 +25,7 @@ const config: HardhatUserConfig = {
   networks: {
     // for mainnet
     "blast-mainnet": {
-      url: "coming end of February",
+      url: "https://rpc.blast.io",
       accounts: [process.env.PRIVATE_KEY as string],
       gasPrice: 1000000000,
     },

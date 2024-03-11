@@ -63,21 +63,13 @@ function mintableBalance() external view returns (uint256)
 
 查询还可以 mint 的余额
 
-### isMinterAuthorized
+## PlantMarketV1
+
+### BLAST
 
 ```solidity
-function isMinterAuthorized(address minter) external view returns (bool)
+contract IBlast BLAST
 ```
-
-查询地址的授权状态
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| minter | address | minter |
-
-## PlantMarketV1
 
 ### PlantType
 
@@ -250,10 +242,16 @@ error InsufficientTokens()
 error OnlyScheduleAdoptionOncePerDay()
 ```
 
+### NoBalance
+
+```solidity
+error NoBalance()
+```
+
 ### constructor
 
 ```solidity
-constructor(address tokenContractAddress) public
+constructor(address tokenContractAddress, address _pointsOperator) public
 ```
 
 ### scheduleAdoption
@@ -341,6 +339,46 @@ function getUserAdoptedCurrentPlants(address _user, bool includeSplit) external 
 function getMarketListings() external view returns (struct PlantMarketV1.Plant[])
 ```
 
+### claimMyContractsGas
+
+```solidity
+function claimMyContractsGas() external
+```
+
+### receive
+
+```solidity
+receive() external payable
+```
+
+### withdraw
+
+```solidity
+function withdraw() external
+```
+
+## IBlast
+
+### configureClaimableGas
+
+```solidity
+function configureClaimableGas() external
+```
+
+### claimAllGas
+
+```solidity
+function claimAllGas(address contractAddress, address recipient) external returns (uint256)
+```
+
+## IBlastPoints
+
+### configurePointsOperator
+
+```solidity
+function configurePointsOperator(address operator) external
+```
+
 ## PlantMarket
 
 ### PlantType
@@ -375,6 +413,7 @@ struct Plant {
 struct UserAdoptionRecord {
   uint256[] plantIds;
   mapping(enum PlantMarket.PlantType => uint256) adoptionCount;
+  mapping(enum PlantMarket.PlantType => uint256) lastScheduledDay;
 }
 ```
 

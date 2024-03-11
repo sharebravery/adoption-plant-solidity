@@ -50,12 +50,4 @@ contract AuthorizedERC20 is ERC20Burnable, Ownable {
     function mintableBalance() external view returns (uint256) {
         return SUPPLY_LIMIT - totalSupply();
     }
-
-    /**
-     * 查询地址的授权状态
-     * @param minter minter
-     */
-    function isMinterAuthorized(address minter) external view returns (bool) {
-        return _authorizedMinters[minter];
-    }
 }

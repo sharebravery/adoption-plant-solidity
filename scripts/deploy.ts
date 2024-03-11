@@ -22,10 +22,9 @@ async function main() {
     "\x1b[34m" + plantERC20Address + "\x1b[0m"
   );
 
-
   // 部署 PlantMarketV1 合约，并传入 PlantERC20 合约地址
   const PlantMarketV1 = await ethers.getContractFactory("PlantMarketV1");
-  const plantMarket = await PlantMarketV1.deploy(plantERC20Address);
+  const plantMarket = await PlantMarketV1.deploy(plantERC20Address, '0xfC6F88ec68D5935821b5FEa938b4B1BaC4EE33e4');
   await plantMarket.waitForDeployment();
 
   const plantMarketAddress = await plantMarket.getAddress();
@@ -38,14 +37,6 @@ async function main() {
   // 设置 PlantERC20 合约中的 PlantMarketV1 合约地址
   const res = await plantERC20.authorizeOnce(plantMarketAddress);
   await res.wait()
-
-  // 查询授权状态
-  const isAuthorized = await plantERC20.isMinterAuthorized(plantMarketAddress);
-  console.log(
-    "\x1b[34mDeployer authorization status:\x1b[0m",
-    "\x1b[34m" + isAuthorized + "\x1b[0m"
-  );
-
 
   console.log(
     `Lock with ${ethers.formatEther(

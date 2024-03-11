@@ -6,7 +6,7 @@
   "scripts": {
     "start": "npx hardhat node",
     "build": "npx hardhat compile & pnpm run gen:docs",
-    "deploy": "pnpm run build && npx hardhat run scripts/deploy.ts",
+    "deploy": "pnpm run build && npx hardhat run scripts/deploy.ts --network blast-mainnet",
     "deploy:mumbai": "pnpm run build && npx hardhat run scripts/deploy.ts --network mumbai",
     "deploy:blast-sepolia": "pnpm run build && npx hardhat run scripts/deploy.ts --network blast-sepolia",
     "test": "npx hardhat test",

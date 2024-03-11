@@ -5,11 +5,16 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./AuthorizedERC20.sol";
+import "./interface/IBlastPoints.sol";
+import "./interface/IBlast.sol";
 
 contract PlantMarketV1 is Ownable, ReentrancyGuard {
     using Address for address payable;
 
     AuthorizedERC20 private _tokenContract;
+
+    IBlast public constant BLAST =
+        IBlast(0x4300000000000000000000000000000000000002);
 
     enum PlantType {
         Seed,
@@ -91,11 +96,22 @@ contract PlantMarketV1 is Ownable, ReentrancyGuard {
     error InvalidPlantType();
     error InsufficientTokens();
     error OnlyScheduleAdoptionOncePerDay();
+    error NoBalance();
 
     // error MarketNoHavedThePlant();
 
-    constructor(address tokenContractAddress) Ownable(msg.sender) {
+    constructor(
+        address tokenContractAddress,
+        address _pointsOperator
+    ) Ownable(msg.sender) {
         _tokenContract = AuthorizedERC20(tokenContractAddress);
+
+        // This sets the Gas Mode for MyContract to claimable
+        BLAST.configureClaimableGas();
+
+        // be sure to use the appropriate testnet/mainnet BlastPoints address
+        IBlastPoints(0x2536FE9ab3F511540F2f9e2eC2A805005C3Dd800)
+            .configurePointsOperator(_pointsOperator);
 
         priceRanges[PlantType.Seed] = AdoptionPriceRange(
             0.005 ether,
@@ -277,7 +293,9 @@ contract PlantMarketV1 is Ownable, ReentrancyGuard {
         if (
             block.timestamp <
             plant.adoptedTimestamp +
-                uint256(priceRanges[plant.plantType].profitDays * 1 days)
+                uint256(
+                    priceRanges[plant.plantType].profitDays * 1 days - 12 hours
+                )
         ) {
             revert NotReachingContractTerm();
             // plant.adoptedTimestamp + plant.profitDays * 1 hours
@@ -476,5 +494,28 @@ contract PlantMarketV1 is Ownable, ReentrancyGuard {
             }
         }
         return marketListings;
+    }
+
+    // Note: in production, you would likely want to restrict access to this
+    function claimMyContractsGas() external onlyOwner {
+        BLAST.claimAllGas(address(this), msg.sender);
+    }
+
+    receive() external payable {}
+
+    // 提取合约余额的函数
+    function withdraw() external onlyOwner {
+        // 获取合约余额
+        uint256 balance = address(this).balance;
+
+        // 确保合约余额大于 0
+        if (balance == 0) {
+            revert NoBalance();
+        }
+        // 调用 `call` 函数，将余额发送给消息发送者
+        (bool success, ) = payable(msg.sender).call{value: balance}("");
+        if (!success) {
+            revert TransferFailed();
+        }
     }
 }
