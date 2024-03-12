@@ -5,6 +5,8 @@ import * as dotenv from 'dotenv';
 
 dotenv.config();
 
+console.log('%c🚀[process.env.BLASTSCAN_API_KEY]-9:', 'color: #063dfa', process.env.BLASTSCAN_API_KEY);
+
 const config: HardhatUserConfig = {
   solidity: {
     compilers: [
@@ -24,7 +26,7 @@ const config: HardhatUserConfig = {
   defaultNetwork: "blast-local",
   networks: {
     // for mainnet
-    "blast-mainnet": {
+    "blast_mainnet": {
       url: "https://rpc.blast.io",
       accounts: [process.env.PRIVATE_KEY as string],
       gasPrice: 1000000000,
@@ -46,25 +48,35 @@ const config: HardhatUserConfig = {
       accounts: [process.env.PRIVATE_KEY || ''] // 使用环境变量中的私钥
     }
   },
+  sourcify: {
+    // Disabled by default
+    // Doesn't need an API key
+    enabled: true,
+    // Optional: specify a different Sourcify server
+    apiUrl: "https://rpc.blast.io",
+    // Optional: specify a different Sourcify repository
+    browserUrl: "https://blastscan.io",
+  },
   etherscan: {
     apiKey: {
-      blast_mainnet: process.env.BLASTSCAN_API_KEY!,
+      'blast_mainnet': process.env.BLASTSCAN_API_KEY!,
     },
+
     customChains: [
       {
-        network: "blast-mainnet",
+        network: "blast_mainnet",
         chainId: 81457,
         urls: {
-          apiURL: "https: //rpc.blast.io",
-          browserURL: "https: //blastscan.io",
+          apiURL: "https://rpc.blast.io",
+          browserURL: "https://blastscan.io",
         },
       },
       {
         network: "blast-sepolia",
         chainId: 168587773,
         urls: {
-          apiURL: "https: //sepolia.blast.io",
-          browserURL: "https: //testnet.blastscan.io",
+          apiURL: "https://sepolia.blast.io",
+          browserURL: "https://testnet.blastscan.io",
         },
       },
     ],
